@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BOM Stock Check</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* ── Layout ───────────────────────────────────────── */
+        .bom-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px; border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .bom-header h2 {
+            font-size: 14px; font-weight: 600; margin: 0; flex: 1;
+        }
+        .bom-content { flex: 1; overflow: auto; }
+
+        /* ── Summary cards ────────────────────────────────── */
+        .summary-bar {
+            display: flex; gap: 10px; padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .summary-card {
+            flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: var(--radius); padding: 8px 12px; text-align: center;
+        }
+        .summary-card .label {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted); font-weight: 600;
+        }
+        .summary-card .value {
+            font-size: 20px; font-weight: 700; margin-top: 2px;
+        }
+        .summary-card .value.ok { color: var(--success); }
+        .summary-card .value.warn { color: var(--warning); }
+        .summary-card .value.bad { color: var(--danger); }
+
+        /* ── BOM Table ────────────────────────────────────── */
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        thead { position: sticky; top: 0; z-index: 1; }
+        th {
+            background: var(--bg-tertiary); color: var(--text-muted);
+            font-weight: 600; font-size: 10px; text-transform: uppercase;
+            letter-spacing: 0.5px; padding: 6px 10px; text-align: left;
+            border-bottom: 2px solid var(--border-color); white-space: nowrap;
+        }
+        td {
+            padding: 6px 10px;
+            border-bottom: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+        }
+        /* Zebra striping */
+        tbody tr:nth-child(even) td { background: var(--bg-secondary); }
+        tbody tr:nth-child(odd) td { background: transparent; }
+        tbody tr:hover td { background: var(--bg-hover) !important; }
+
+        /* Status indicators */
+        .status-ok { color: var(--success); font-weight: 600; }
+        .status-low { color: var(--warning); font-weight: 600; }
+        .status-out { color: var(--danger); font-weight: 600; }
+        .status-unknown { color: var(--text-muted); font-style: italic; }
+
+        /* Row status background hints */
+        tr.row-out td:first-child { border-left: 3px solid var(--danger); }
+        tr.row-low td:first-child { border-left: 3px solid var(--warning); }
+
+        /* Qty input */
+        .qty-col { width: 50px; text-align: right; }
+        .qty-badge {
+            display: inline-block; padding: 1px 6px; border-radius: 8px;
+            font-size: 11px; font-weight: 600; min-width: 24px; text-align: center;
+        }
+
+        /* ── Footer / Status ──────────────────────────────── */
+        .status-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 12px; border-top: 1px solid var(--border-color);
+            font-size: 11px; color: var(--text-muted); flex-shrink: 0;
+        }
+        .conn-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 1px 8px 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600;
+        }
+        .conn-badge.ok { background: rgba(76,175,80,0.15); color: var(--success); }
+        .conn-badge.err { background: rgba(244,67,54,0.15); color: var(--danger); }
+        .conn-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+        .conn-badge.ok .dot { background: var(--success); }
+        .conn-badge.err .dot { background: var(--danger); }
+        .status-links a { color: var(--text-muted); text-decoration: none; font-size: 10px; }
+        .status-links a:hover { color: var(--accent); text-decoration: underline; }
+
+        /* ── Project sync ─────────────────────────────────── */
+        .sync-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px; border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0; background: var(--bg-secondary);
+        }
+        .sync-bar label {
+            font-size: 11px; font-weight: 600; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .sync-bar select {
+            flex: 1; max-width: 280px; padding: 4px 8px; font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" style="padding: 0; gap: 0;">
+        <!-- Header -->
+        <div class="bom-header">
+            <h2>BOM Stock Check</h2>
+            <button class="btn btn-sm btn-primary" id="btnRefresh">&#8635; Refresh</button>
+            <button class="btn btn-sm" id="btnExportCsv" disabled>&#128196; Export CSV</button>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-bar" id="summaryBar" style="display: none;">
+            <div class="summary-card">
+                <div class="label">Total Lines</div>
+                <div class="value" id="sumTotal">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">In Stock</div>
+                <div class="value ok" id="sumOk">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Low Stock</div>
+                <div class="value warn" id="sumLow">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Out of Stock</div>
+                <div class="value bad" id="sumOut">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Not Found</div>
+                <div class="value" id="sumMissing" style="color: var(--text-muted);">0</div>
+            </div>
+        </div>
+
+        <!-- Project sync bar -->
+        <div class="sync-bar" id="syncBar" style="display: none;">
+            <label>Sync to Project:</label>
+            <select id="projectSelect">
+                <option value="">-- Select Part-DB Project --</option>
+            </select>
+            <button class="btn btn-sm btn-primary" id="btnSync" disabled>Sync BOM</button>
+        </div>
+
+        <!-- BOM content -->
+        <div class="bom-content" id="bomContent">
+            <div class="empty-state" id="bomEmpty">
+                <div class="icon">&#128203;</div>
+                <div>BOM Stock Check</div>
+                <div style="font-size: 11px; margin-top: 4px; color: var(--text-muted);">
+                    Reads schematic components and checks Part-DB stock levels.<br>
+                    Open a schematic first, then click <strong>Refresh</strong>.
+                </div>
+            </div>
+            <div class="loading" id="bomLoading" style="display: none;">
+                <div class="spinner"></div>
+                <span id="loadingText">Reading schematic...</span>
+            </div>
+            <div id="bomTable" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Designator</th>
+                            <th>Value</th>
+                            <th>LCSC #</th>
+                            <th>Part Name</th>
+                            <th class="qty-col">Qty</th>
+                            <th>Part-DB Stock</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bomBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="connBadge" class="conn-badge err"><span class="dot"></span> Disconnected</span>
+            <span class="status-links">
+                <a href="https://github.com/Sebbeben/easyeda-partdb-extension/issues" target="_blank">Report Issue</a>
+            </span>
+        </div>
+    </div>
+
+    <script>
+        // ════════════════════════════════════════════════════
+        //  Helpers
+        // ════════════════════════════════════════════════════
+
+        function showToast(message, type) {
+            if (!type) type = 'success';
+            var existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            var toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(function() { toast.remove(); }, 3000);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ════════════════════════════════════════════════════
+        //  PartDBClient (inlined — iframe sandbox blocks script src)
+        // ════════════════════════════════════════════════════
+
+        var PartDBClient = (function() {
+            function PartDBClient() {
+                this.baseUrl = '';
+                this.token = '';
+            }
+
+            PartDBClient.prototype.loadSettings = async function() {
+                try {
+                    this.baseUrl = (await eda.sys_Storage.getExtensionUserConfig('PARTDB_URL')) || '';
+                    this.token = (await eda.sys_Storage.getExtensionUserConfig('PARTDB_TOKEN')) || '';
+                } catch (e) {
+                    // Settings not yet configured
+                }
+                this.baseUrl = this.baseUrl.replace(/\/+$/, '');
+            };
+
+            PartDBClient.prototype.isConfigured = function() {
+                return !!(this.baseUrl && this.token);
+            };
+
+            PartDBClient.prototype.request = async function(endpoint, options) {
+                if (!options) options = {};
+                if (!this.isConfigured()) {
+                    throw new Error('Part-DB not configured.');
+                }
+                var url = this.baseUrl + endpoint;
+                var response = await fetch(url, {
+                    method: options.method || 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + this.token,
+                        'Accept': 'application/json',
+                        'Content-Type': options.contentType || 'application/json',
+                    },
+                    body: options.body || undefined,
+                });
+                if (!response.ok) {
+                    if (response.status === 401) throw new Error('Auth failed. Check API token.');
+                    if (response.status === 403) throw new Error('Access denied.');
+                    throw new Error('API error ' + response.status);
+                }
+                return response.json();
+            };
+
+            PartDBClient.prototype.getProjects = async function() {
+                var params = new URLSearchParams({
+                    itemsPerPage: '200',
+                    'order[name]': 'asc',
+                });
+                return this.request('/api/projects?' + params);
+            };
+
+            PartDBClient.prototype.getProjectBomEntries = async function(projectId) {
+                var params = new URLSearchParams({
+                    itemsPerPage: '500',
+                    'project': projectId.toString(),
+                });
+                return this.request('/api/project_bom_entries?' + params);
+            };
+
+            PartDBClient.prototype.createProjectBomEntry = async function(data) {
+                return this.request('/api/project_bom_entries', {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                });
+            };
+
+            PartDBClient.prototype.updateProjectBomEntry = async function(id, data) {
+                return this.request('/api/project_bom_entries/' + id, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data),
+                    contentType: 'application/merge-patch+json',
+                });
+            };
+
+            /**
+             * Search for parts by supplier part number (LCSC number).
+             * Uses the orderdetails.supplierpartnr filter.
+             */
+            PartDBClient.prototype.searchBySupplierPartNumber = async function(spn) {
+                var params = new URLSearchParams({
+                    'orderdetails.supplierpartnr': spn,
+                    itemsPerPage: '5',
+                });
+                return this.request('/api/parts?' + params);
+            };
+
+            /**
+             * Search for parts by name (fallback if no LCSC match).
+             */
+            PartDBClient.prototype.searchByName = async function(name) {
+                var params = new URLSearchParams({
+                    'name': '%' + name + '%',
+                    itemsPerPage: '5',
+                });
+                return this.request('/api/parts?' + params);
+            };
+
+            PartDBClient.extractId = function(iri) {
+                if (!iri) return null;
+                if (typeof iri === 'number') return iri;
+                var match = String(iri).match(/\/(\d+)$/);
+                return match ? parseInt(match[1], 10) : null;
+            };
+
+            PartDBClient.calculateStock = function(partLots) {
+                if (!partLots || partLots.length === 0) return 0;
+                var total = 0;
+                var hasUnknown = false;
+                for (var i = 0; i < partLots.length; i++) {
+                    var lot = partLots[i];
+                    if (lot.instock_unknown) { hasUnknown = true; continue; }
+                    if (lot.expiration_date && new Date(lot.expiration_date) < new Date()) continue;
+                    total += lot.amount || 0;
+                }
+                return (total === 0 && hasUnknown) ? '?' : total;
+            };
+
+            PartDBClient.stockClass = function(stock, minAmount) {
+                if (!minAmount) minAmount = 0;
+                if (stock === '?') return 'stock-low';
+                if (stock <= 0) return 'stock-zero';
+                if (minAmount > 0 && stock < minAmount) return 'stock-low';
+                return 'stock-ok';
+            };
+
+            return PartDBClient;
+        })();
+
+        // ════════════════════════════════════════════════════
+        //  Application State
+        // ════════════════════════════════════════════════════
+
+        var client = new PartDBClient();
+        var bomLines = []; // Processed BOM data for export/sync
+
+        // ════════════════════════════════════════════════════
+        //  DOM References
+        // ════════════════════════════════════════════════════
+
+        var btnRefresh = document.getElementById('btnRefresh');
+        var btnExportCsv = document.getElementById('btnExportCsv');
+        var summaryBar = document.getElementById('summaryBar');
+        var bomContent = document.getElementById('bomContent');
+        var bomEmpty = document.getElementById('bomEmpty');
+        var bomLoading = document.getElementById('bomLoading');
+        var loadingText = document.getElementById('loadingText');
+        var bomTable = document.getElementById('bomTable');
+        var bomBody = document.getElementById('bomBody');
+        var connBadge = document.getElementById('connBadge');
+        var syncBar = document.getElementById('syncBar');
+        var projectSelect = document.getElementById('projectSelect');
+        var btnSync = document.getElementById('btnSync');
+
+        var sumTotal = document.getElementById('sumTotal');
+        var sumOk = document.getElementById('sumOk');
+        var sumLow = document.getElementById('sumLow');
+        var sumOut = document.getElementById('sumOut');
+        var sumMissing = document.getElementById('sumMissing');
+
+        // ════════════════════════════════════════════════════
+        //  Initialize
+        // ════════════════════════════════════════════════════
+
+        async function init() {
+            await client.loadSettings();
+            if (client.isConfigured()) {
+                connBadge.className = 'conn-badge ok';
+                connBadge.innerHTML = '<span class="dot"></span> Connected';
+                loadProjects();
+            } else {
+                connBadge.className = 'conn-badge err';
+                connBadge.innerHTML = '<span class="dot"></span> Not configured';
+            }
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Read Schematic BOM
+        // ════════════════════════════════════════════════════
+
+        /**
+         * Read all components from the current schematic.
+         * Groups components by LCSC number or value to produce BOM lines.
+         */
+        async function readSchematicBom() {
+            var components;
+            try {
+                components = await eda.sch_PrimitiveComponent.getAll();
+            } catch (e) {
+                throw new Error('Could not read schematic. Make sure a schematic is open.');
+            }
+
+            if (!components || components.length === 0) {
+                throw new Error('No components found in the current schematic.');
+            }
+
+            // Group by LCSC number (or by value+footprint if no LCSC)
+            var groups = {};
+            for (var i = 0; i < components.length; i++) {
+                var comp = components[i];
+                var attrs = comp.attributes || comp.attrs || {};
+
+                // Extract component info from attributes
+                var designator = attrs['Designator'] || attrs['designator'] || comp.designator || '';
+                var value = attrs['Value'] || attrs['value'] || comp.value || '';
+                var lcsc = attrs['LCSC'] || attrs['lcsc'] || attrs['LCSC Part Number'] ||
+                           attrs['Supplier Part'] || attrs['JLC Part'] || '';
+                var footprint = attrs['Footprint'] || attrs['footprint'] || comp.footprint || '';
+                var name = attrs['Name'] || attrs['name'] || comp.name || '';
+
+                // Skip non-component items (frames, logos, etc.)
+                if (!designator) continue;
+
+                // Group key: prefer LCSC, fall back to value+footprint
+                var groupKey = lcsc ? ('lcsc:' + lcsc) : ('val:' + value + ':' + footprint);
+
+                if (!groups[groupKey]) {
+                    groups[groupKey] = {
+                        designators: [],
+                        value: value,
+                        lcsc: lcsc,
+                        footprint: footprint,
+                        name: name,
+                        qty: 0,
+                    };
+                }
+                groups[groupKey].designators.push(designator);
+                groups[groupKey].qty++;
+            }
+
+            // Convert to sorted array
+            var lines = [];
+            var keys = Object.keys(groups);
+            for (var j = 0; j < keys.length; j++) {
+                var g = groups[keys[j]];
+                g.designators.sort();
+                lines.push(g);
+            }
+
+            // Sort by first designator
+            lines.sort(function(a, b) {
+                return a.designators[0].localeCompare(b.designators[0], undefined, { numeric: true });
+            });
+
+            return lines;
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Check Stock Against Part-DB
+        // ════════════════════════════════════════════════════
+
+        async function checkStock() {
+            if (!client.isConfigured()) {
+                showToast('Configure Part-DB connection first', 'error');
+                return;
+            }
+
+            // Show loading
+            bomEmpty.style.display = 'none';
+            bomTable.style.display = 'none';
+            summaryBar.style.display = 'none';
+            syncBar.style.display = 'none';
+            bomLoading.style.display = 'flex';
+            loadingText.textContent = 'Reading schematic...';
+            btnRefresh.disabled = true;
+
+            try {
+                var lines = await readSchematicBom();
+                bomLines = [];
+
+                loadingText.textContent = 'Checking Part-DB stock (0/' + lines.length + ')...';
+
+                // Look up each BOM line in Part-DB
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i];
+                    loadingText.textContent = 'Checking Part-DB stock (' + (i + 1) + '/' + lines.length + ')...';
+
+                    var partMatch = null;
+                    var stock = null;
+                    var stockClass = '';
+                    var partName = '';
+                    var partId = null;
+
+                    // Try to find by LCSC number first
+                    if (line.lcsc) {
+                        try {
+                            var data = await client.searchBySupplierPartNumber(line.lcsc);
+                            var parts = data['hydra:member'] || data.member || [];
+                            if (parts.length > 0) {
+                                partMatch = parts[0];
+                            }
+                        } catch (e) {
+                            // Search failed, continue
+                        }
+                    }
+
+                    // Fallback: search by component value/name
+                    if (!partMatch && line.value) {
+                        try {
+                            var data2 = await client.searchByName(line.value);
+                            var parts2 = data2['hydra:member'] || data2.member || [];
+                            if (parts2.length > 0) {
+                                partMatch = parts2[0];
+                            }
+                        } catch (e) {
+                            // Search failed
+                        }
+                    }
+
+                    if (partMatch) {
+                        stock = PartDBClient.calculateStock(partMatch.partLots || []);
+                        stockClass = PartDBClient.stockClass(stock, partMatch.minamount || 0);
+                        partName = partMatch.name || '';
+                        partId = PartDBClient.extractId(partMatch['@id'] || partMatch.id);
+                    }
+
+                    bomLines.push({
+                        designators: line.designators,
+                        value: line.value,
+                        lcsc: line.lcsc,
+                        footprint: line.footprint,
+                        qty: line.qty,
+                        partMatch: partMatch,
+                        partName: partName,
+                        partId: partId,
+                        stock: stock,
+                        stockClass: stockClass,
+                    });
+                }
+
+                renderBomTable();
+            } catch (e) {
+                bomLoading.style.display = 'none';
+                bomEmpty.innerHTML =
+                    '<div class="icon">&#9888;</div>' +
+                    '<div style="color: var(--danger);">' + escapeHtml(e.message) + '</div>';
+                bomEmpty.style.display = 'block';
+            } finally {
+                btnRefresh.disabled = false;
+            }
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Render BOM Table
+        // ════════════════════════════════════════════════════
+
+        function renderBomTable() {
+            bomLoading.style.display = 'none';
+            bomBody.innerHTML = '';
+
+            var countOk = 0, countLow = 0, countOut = 0, countMissing = 0;
+
+            for (var i = 0; i < bomLines.length; i++) {
+                var line = bomLines[i];
+                var tr = document.createElement('tr');
+
+                // Determine status
+                var statusHtml = '';
+                var rowClass = '';
+                if (!line.partMatch) {
+                    statusHtml = '<span class="status-unknown">Not in Part-DB</span>';
+                    countMissing++;
+                } else if (line.stock === '?') {
+                    statusHtml = '<span class="status-low">Unknown</span>';
+                    countLow++;
+                } else if (line.stock <= 0) {
+                    statusHtml = '<span class="status-out">Out of Stock</span>';
+                    rowClass = 'row-out';
+                    countOut++;
+                } else if (line.stock < line.qty) {
+                    statusHtml = '<span class="status-low">Low (' + line.stock + ' &lt; ' + line.qty + ')</span>';
+                    rowClass = 'row-low';
+                    countLow++;
+                } else {
+                    statusHtml = '<span class="status-ok">OK</span>';
+                    countOk++;
+                }
+
+                if (rowClass) tr.className = rowClass;
+
+                // Stock display
+                var stockHtml = '-';
+                if (line.partMatch) {
+                    var cls = PartDBClient.stockClass(line.stock, line.qty);
+                    stockHtml = '<span class="stock-badge ' + cls + '">' + line.stock + '</span>';
+                }
+
+                // Part name with link
+                var partNameHtml = '-';
+                if (line.partMatch && line.partId) {
+                    partNameHtml = '<a href="' + client.baseUrl + '/en/part/' + line.partId + '" target="_blank" ' +
+                        'style="color: var(--accent); text-decoration: none;" title="Open in Part-DB">' +
+                        escapeHtml(line.partName) + '</a>';
+                }
+
+                // LCSC with copy
+                var lcscHtml = '-';
+                if (line.lcsc) {
+                    lcscHtml = '<span style="font-family: var(--font-mono); font-size: 11px; cursor: pointer; color: var(--text-primary);" ' +
+                        'onclick="navigator.clipboard.writeText(\'' + escapeHtml(line.lcsc) + '\');showToast(\'Copied: ' + escapeHtml(line.lcsc) + '\')" ' +
+                        'title="Click to copy">' + escapeHtml(line.lcsc) + '</span>';
+                }
+
+                tr.innerHTML =
+                    '<td title="' + escapeHtml(line.designators.join(', ')) + '">' +
+                        escapeHtml(line.designators.length > 3
+                            ? line.designators.slice(0, 3).join(', ') + '... (+' + (line.designators.length - 3) + ')'
+                            : line.designators.join(', ')) +
+                    '</td>' +
+                    '<td>' + escapeHtml(line.value || '-') + '</td>' +
+                    '<td>' + lcscHtml + '</td>' +
+                    '<td>' + partNameHtml + '</td>' +
+                    '<td class="qty-col"><span class="qty-badge" style="background: var(--bg-tertiary);">' + line.qty + '</span></td>' +
+                    '<td>' + stockHtml + '</td>' +
+                    '<td>' + statusHtml + '</td>';
+
+                bomBody.appendChild(tr);
+            }
+
+            bomTable.style.display = 'block';
+            btnExportCsv.disabled = false;
+
+            // Update summary
+            sumTotal.textContent = bomLines.length;
+            sumOk.textContent = countOk;
+            sumLow.textContent = countLow;
+            sumOut.textContent = countOut;
+            sumMissing.textContent = countMissing;
+            summaryBar.style.display = 'flex';
+
+            // Show sync bar if we have projects loaded
+            if (projectSelect.options.length > 1) {
+                syncBar.style.display = 'flex';
+            }
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Export CSV
+        // ════════════════════════════════════════════════════
+
+        function exportCsv() {
+            if (bomLines.length === 0) return;
+
+            function csvField(val) {
+                var s = String(val == null ? '' : val);
+                if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+                    return '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+            }
+
+            var rows = [['Designators', 'Value', 'LCSC', 'Part-DB Name', 'Qty', 'Stock', 'Status']];
+            for (var i = 0; i < bomLines.length; i++) {
+                var line = bomLines[i];
+                var status = '';
+                if (!line.partMatch) {
+                    status = 'Not Found';
+                } else if (line.stock === '?') {
+                    status = 'Unknown';
+                } else if (line.stock <= 0) {
+                    status = 'Out of Stock';
+                } else if (line.stock < line.qty) {
+                    status = 'Low';
+                } else {
+                    status = 'OK';
+                }
+                rows.push([
+                    csvField(line.designators.join(', ')),
+                    csvField(line.value || ''),
+                    csvField(line.lcsc || ''),
+                    csvField(line.partName || ''),
+                    line.qty,
+                    line.stock != null ? line.stock : '',
+                    status,
+                ]);
+            }
+
+            var csv = rows.map(function(r) { return r.join(','); }).join('\n');
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'bom-stock-check.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('CSV exported');
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Project Sync
+        // ════════════════════════════════════════════════════
+
+        async function loadProjects() {
+            try {
+                var data = await client.getProjects();
+                var projects = data['hydra:member'] || data.member || [];
+                for (var i = 0; i < projects.length; i++) {
+                    var p = projects[i];
+                    var opt = document.createElement('option');
+                    opt.value = PartDBClient.extractId(p['@id'] || p.id);
+                    opt.textContent = p.name || 'Project ' + opt.value;
+                    projectSelect.appendChild(opt);
+                }
+            } catch (e) {
+                // Projects API may not be available or user lacks permission
+            }
+        }
+
+        async function syncToProject() {
+            var projectId = projectSelect.value;
+            if (!projectId) {
+                showToast('Select a project first', 'warning');
+                return;
+            }
+
+            var matchedLines = bomLines.filter(function(l) { return l.partMatch; });
+            if (matchedLines.length === 0) {
+                showToast('No matched parts to sync', 'warning');
+                return;
+            }
+
+            btnSync.disabled = true;
+            btnSync.textContent = 'Syncing...';
+
+            try {
+                // Get existing BOM entries for this project
+                var existingData = await client.getProjectBomEntries(projectId);
+                var existing = existingData['hydra:member'] || existingData.member || [];
+
+                // Build lookup of existing entries by part IRI
+                var existingByPart = {};
+                for (var i = 0; i < existing.length; i++) {
+                    var entry = existing[i];
+                    var partIri = '';
+                    if (entry.part) {
+                        partIri = typeof entry.part === 'object' ? (entry.part['@id'] || '') : entry.part;
+                    }
+                    if (partIri) {
+                        existingByPart[partIri] = entry;
+                    }
+                }
+
+                var created = 0;
+                var updated = 0;
+
+                for (var j = 0; j < matchedLines.length; j++) {
+                    var line = matchedLines[j];
+                    var partIri = '/api/parts/' + line.partId;
+                    var entryData = {
+                        quantity: line.qty,
+                        mountnames: line.designators.join(', '),
+                        name: line.value || line.partName,
+                    };
+
+                    if (existingByPart[partIri]) {
+                        // Update existing entry
+                        var entryId = PartDBClient.extractId(existingByPart[partIri]['@id'] || existingByPart[partIri].id);
+                        try {
+                            await client.updateProjectBomEntry(entryId, entryData);
+                            updated++;
+                        } catch (e) {
+                            // Skip failed updates
+                        }
+                    } else {
+                        // Create new entry
+                        entryData.project = '/api/projects/' + projectId;
+                        entryData.part = partIri;
+                        try {
+                            await client.createProjectBomEntry(entryData);
+                            created++;
+                        } catch (e) {
+                            // Skip failed creates
+                        }
+                    }
+                }
+
+                showToast('Synced: ' + created + ' created, ' + updated + ' updated');
+            } catch (e) {
+                showToast('Sync failed: ' + e.message, 'error');
+            } finally {
+                btnSync.disabled = false;
+                btnSync.textContent = 'Sync BOM';
+            }
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Event Listeners
+        // ════════════════════════════════════════════════════
+
+        btnRefresh.addEventListener('click', function() {
+            checkStock();
+        });
+
+        btnExportCsv.addEventListener('click', function() {
+            exportCsv();
+        });
+
+        projectSelect.addEventListener('change', function() {
+            btnSync.disabled = !projectSelect.value;
+        });
+
+        btnSync.addEventListener('click', function() {
+            syncToProject();
+        });
+
+        // ════════════════════════════════════════════════════
+        //  Start
+        // ════════════════════════════════════════════════════
+
+        init();
+    </script>
+</body>
+</html>

@@ -2,8 +2,8 @@
   "name": "partdb-integration",
   "uuid": "a3f7b2c1d4e5f6a7b8c9d0e1f2a3b4c5",
   "displayName": "Part-DB Integration",
-  "description": "Search and browse your Part-DB inventory directly from EasyEDA Pro. View stock levels, supplier info, datasheets, and part parameters.",
-  "version": "0.3.0",
+  "description": "Search and browse your Part-DB inventory directly from EasyEDA Pro. View stock levels, supplier info, datasheets, and part parameters. Check BOM stock and sync to Part-DB projects.",
+  "version": "0.4.0",
   "publisher": "Sebbeben",
   "engines": {
     "eda": "^2.3"
@@ -56,6 +56,11 @@
             "id": "PartDBSearchSch",
             "title": "Search Parts...",
             "registerFn": "openSearch"
+          },
+          {
+            "id": "PartDBBomCheck",
+            "title": "BOM Stock Check...",
+            "registerFn": "openBomCheck"
           },
           {
             "id": "PartDBSettingsSch",

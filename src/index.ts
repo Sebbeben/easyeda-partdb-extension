@@ -13,7 +13,14 @@ export function activate(_status?: string, _arg?: string): void {
  * Open the main part search panel.
  */
 export function openSearch(): void {
-    eda.sys_IFrame.openIFrame('/iframe/search.html', 900, 650, 'partdb-search');
+    eda.sys_IFrame.openIFrame('/iframe/search.html', 1000, 700, 'partdb-search');
+}
+
+/**
+ * Open the BOM stock check panel.
+ */
+export function openBomCheck(): void {
+    eda.sys_IFrame.openIFrame('/iframe/bom.html', 1000, 650, 'partdb-bom');
 }
 
 /**

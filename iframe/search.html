@@ -55,27 +55,35 @@
         /* ── Results Table ────────────────────────────────── */
         .results-scroll { flex: 1; overflow: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        thead { position: sticky; top: 0; z-index: 1; }
         th {
-            position: sticky; top: 0; z-index: 1;
             background: var(--bg-tertiary); color: var(--text-muted);
             font-weight: 600; font-size: 10px; text-transform: uppercase;
             letter-spacing: 0.5px; padding: 6px 10px; text-align: left;
             border-bottom: 2px solid var(--border-color); white-space: nowrap;
         }
         td {
-            padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+            padding: 6px 10px;
+            border-bottom: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
         }
-        tr:hover td { background: var(--bg-hover); }
+        /* Zebra striping */
+        tbody tr:nth-child(even) td { background: var(--bg-secondary); }
+        tbody tr:nth-child(odd) td { background: transparent; }
+        tbody tr:hover td { background: var(--bg-hover) !important; }
         tr { cursor: pointer; transition: background 0.08s; }
         .part-name { font-weight: 500; color: var(--text-primary); }
 
-        /* ── Part Detail ──────────────────────────────────── */
+        /* ── Detail View ─────────────────────────────────── */
+        .detail-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+            padding-bottom: 8px; border-bottom: 1px solid var(--border-color);
+        }
         .detail-panel {
             background: var(--bg-secondary); border: 1px solid var(--border-color);
-            border-radius: var(--radius); padding: 16px; overflow-y: auto;
+            border-radius: var(--radius); padding: 16px;
         }
-        .detail-panel h3 { font-size: 15px; margin-bottom: 12px; color: var(--text-primary); }
+        .detail-panel h3 { font-size: 15px; margin: 0; color: var(--text-primary); flex: 1; }
         .detail-section { margin-bottom: 14px; }
         .detail-section-title {
             font-size: 10px; font-weight: 600; text-transform: uppercase;
@@ -83,15 +91,11 @@
             padding-bottom: 4px; border-bottom: 1px solid var(--border-color);
         }
         .detail-row { display: flex; padding: 3px 0; font-size: 12px; }
+        .detail-row:nth-child(even) { background: rgba(255,255,255,0.02); border-radius: 3px; }
         .detail-label { width: 120px; flex-shrink: 0; color: var(--text-muted); font-weight: 500; }
         .detail-value { color: var(--text-primary); word-break: break-word; }
         .detail-value a { color: var(--accent); text-decoration: none; }
         .detail-value a:hover { text-decoration: underline; }
-        .back-btn {
-            cursor: pointer; color: var(--accent); font-size: 12px;
-            margin-bottom: 10px; display: inline-flex; align-items: center; gap: 4px;
-        }
-        .back-btn:hover { text-decoration: underline; }
 
         /* Part image */
         .part-image {
@@ -112,11 +116,29 @@
         .supplier-card .supplier-name { font-weight: 600; color: var(--text-primary); }
         .supplier-card .supplier-spn { color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; }
         .supplier-card .supplier-price { color: var(--accent); font-weight: 500; }
+
+        /* Parameter table zebra */
+        .param-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
         .param-table td:first-child { color: var(--text-secondary); font-weight: 500; }
 
         /* Copyable */
         .copyable { cursor: pointer; position: relative; }
         .copyable:hover { color: var(--accent); }
+
+        /* Action buttons row */
+        .action-bar {
+            display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
+        }
+        .btn-action {
+            padding: 5px 12px; border: 1px solid var(--border-color);
+            border-radius: var(--radius); background: var(--bg-tertiary);
+            color: var(--text-primary); font-size: 12px; font-family: var(--font);
+            cursor: pointer; text-decoration: none; display: inline-flex;
+            align-items: center; gap: 5px; transition: all 0.15s;
+        }
+        .btn-action:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); }
+        .btn-action.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn-action.primary:hover { background: var(--accent-hover); }
 
         /* ── Footer / Status ──────────────────────────────── */
         .status-bar {
@@ -142,7 +164,7 @@
         <!-- Search Header -->
         <div class="header" style="padding: 8px 12px; border-bottom: 1px solid var(--border-color);">
             <div class="search-bar" style="flex: 1;">
-                <input type="search" id="searchInput" placeholder="Search by name, description, MPN, IPN...">
+                <input type="search" id="searchInput" placeholder="Search by name, description, MPN, IPN, LCSC...">
                 <button class="btn btn-primary" id="btnSearch">Search</button>
             </div>
         </div>
@@ -166,6 +188,7 @@
 
             <!-- Results -->
             <div class="results-area">
+                <!-- Results list view -->
                 <div id="resultsView" style="flex: 1; display: flex; flex-direction: column;">
                     <div id="resultsInfo" style="display: none; padding: 4px 12px; font-size: 11px; color: var(--text-muted);">
                         <span id="resultsCount"></span>
@@ -178,7 +201,7 @@
                                     <th>Name</th>
                                     <th>Description</th>
                                     <th>Category</th>
-                                    <th>MPN</th>
+                                    <th>LCSC / MPN</th>
                                     <th>Stock</th>
                                     <th>Location</th>
                                 </tr>
@@ -204,8 +227,12 @@
                     </div>
                 </div>
 
+                <!-- Part detail view -->
                 <div id="detailView" style="display: none; flex: 1; overflow-y: auto; padding: 12px;">
-                    <div class="back-btn" id="btnBack">&larr; Back to results</div>
+                    <div class="detail-header">
+                        <button class="btn btn-sm" id="btnBack">&larr; Back</button>
+                        <span style="flex:1;"></span>
+                    </div>
                     <div class="detail-panel" id="detailContent"></div>
                 </div>
             </div>
@@ -221,7 +248,10 @@
     </div>
 
     <script>
-        // ── Helpers ────────────────────────────────────────
+        // ════════════════════════════════════════════════════
+        //  Helpers
+        // ════════════════════════════════════════════════════
+
         function showToast(message, type = 'success') {
             const existing = document.querySelector('.toast');
             if (existing) existing.remove();
@@ -231,32 +261,52 @@
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
         }
+
         function escapeHtml(str) {
             if (!str) return '';
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
         }
-        function copyToClipboard(text, el) {
+
+        function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 showToast('Copied: ' + text);
-            }).catch(() => showToast('Copy failed', 'error'));
+            }).catch(() => {
+                showToast('Copy failed', 'error');
+            });
         }
 
-        // ── PartDBClient ───────────────────────────────────
+        // ════════════════════════════════════════════════════
+        //  PartDBClient
+        // ════════════════════════════════════════════════════
+
         class PartDBClient {
-            constructor() { this.baseUrl = ''; this.token = ''; }
+            constructor() {
+                this.baseUrl = '';
+                this.token = '';
+            }
+
             async loadSettings() {
                 try {
                     this.baseUrl = (await eda.sys_Storage.getExtensionUserConfig('PARTDB_URL')) || '';
                     this.token = (await eda.sys_Storage.getExtensionUserConfig('PARTDB_TOKEN')) || '';
-                } catch (e) {}
+                } catch (e) {
+                    // Settings not yet configured
+                }
                 this.baseUrl = this.baseUrl.replace(/\/+$/, '');
             }
-            isConfigured() { return this.baseUrl && this.token; }
+
+            isConfigured() {
+                return !!(this.baseUrl && this.token);
+            }
+
             async request(endpoint, options = {}) {
-                if (!this.isConfigured()) throw new Error('Part-DB not configured.');
-                const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                if (!this.isConfigured()) {
+                    throw new Error('Part-DB not configured.');
+                }
+                const url = `${this.baseUrl}${endpoint}`;
+                const response = await fetch(url, {
                     ...options,
                     headers: {
                         'Authorization': `Bearer ${this.token}`,
@@ -268,47 +318,40 @@
                 if (!response.ok) {
                     if (response.status === 401) throw new Error('Auth failed. Check API token.');
                     if (response.status === 403) throw new Error('Access denied.');
-                    throw new Error(`API ${response.status}`);
+                    throw new Error(`API error ${response.status}`);
                 }
                 return response.json();
             }
-            async getPart(id) { return this.request(`/api/parts/${id}`); }
+
+            async getPart(id) {
+                return this.request(`/api/parts/${id}`);
+            }
+
             async getCategories(page = 1, itemsPerPage = 500) {
-                const params = new URLSearchParams({ page: page.toString(), itemsPerPage: itemsPerPage.toString(), 'order[name]': 'asc' });
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    itemsPerPage: itemsPerPage.toString(),
+                    'order[name]': 'asc',
+                });
                 return this.request(`/api/categories?${params}`);
             }
-            static extractId(iri) {
-                if (!iri) return null;
-                if (typeof iri === 'number') return iri;
-                const match = String(iri).match(/\/(\d+)$/);
-                return match ? parseInt(match[1], 10) : null;
-            }
-            static calculateStock(partLots) {
-                if (!partLots || partLots.length === 0) return 0;
-                let total = 0, hasUnknown = false;
-                for (const lot of partLots) {
-                    if (lot.instock_unknown) { hasUnknown = true; continue; }
-                    if (lot.expiration_date && new Date(lot.expiration_date) < new Date()) continue;
-                    total += lot.amount || 0;
-                }
-                return (total === 0 && hasUnknown) ? '?' : total;
-            }
-            static stockClass(stock, minAmount = 0) {
-                if (stock === '?') return 'stock-low';
-                if (stock <= 0) return 'stock-zero';
-                if (minAmount > 0 && stock < minAmount) return 'stock-low';
-                return 'stock-ok';
-            }
-            // Get thumbnail URL for a part's master picture
+
+            /**
+             * Get the thumbnail URL for a part's master picture attachment.
+             * Returns null if no image is available.
+             */
             getImageUrl(part) {
                 const att = part.master_picture_attachment;
                 if (!att) return null;
-                // Try thumbnail_url first, then internal path, then external url
                 const url = att.thumbnail_url || att.media_url || att.url || att.internal_path;
                 if (!url) return null;
                 return url.startsWith('http') ? url : `${this.baseUrl}${url}`;
             }
-            // Extract datasheet URL from attachments
+
+            /**
+             * Extract the first datasheet URL from a part's attachments.
+             * Looks for attachments named "datasheet" or with .pdf extension.
+             */
             getDatasheetUrl(part) {
                 if (!part.attachments) return null;
                 for (const att of part.attachments) {
@@ -321,20 +364,72 @@
                 }
                 return null;
             }
-            // Extract LCSC number from supplier part numbers
+
+            /**
+             * Extract a Part ID from an API IRI string like '/api/parts/42'.
+             */
+            static extractId(iri) {
+                if (!iri) return null;
+                if (typeof iri === 'number') return iri;
+                const match = String(iri).match(/\/(\d+)$/);
+                return match ? parseInt(match[1], 10) : null;
+            }
+
+            /**
+             * Calculate total stock from a part's lot entries.
+             * Returns a number or '?' if all lots have unknown stock.
+             */
+            static calculateStock(partLots) {
+                if (!partLots || partLots.length === 0) return 0;
+                let total = 0;
+                let hasUnknown = false;
+                for (const lot of partLots) {
+                    if (lot.instock_unknown) {
+                        hasUnknown = true;
+                        continue;
+                    }
+                    if (lot.expiration_date && new Date(lot.expiration_date) < new Date()) {
+                        continue;
+                    }
+                    total += lot.amount || 0;
+                }
+                return (total === 0 && hasUnknown) ? '?' : total;
+            }
+
+            /**
+             * Get CSS class for stock badge coloring.
+             */
+            static stockClass(stock, minAmount = 0) {
+                if (stock === '?') return 'stock-low';
+                if (stock <= 0) return 'stock-zero';
+                if (minAmount > 0 && stock < minAmount) return 'stock-low';
+                return 'stock-ok';
+            }
+
+            /**
+             * Extract LCSC part number (e.g. C12345) from a part's supplier data.
+             * Checks supplierpartnr format and supplier name.
+             */
             static getLcscNumber(part) {
                 if (!part.orderdetails) return null;
                 for (const od of part.orderdetails) {
                     const spn = (od.supplierpartnr || '').trim();
+                    // Direct match: starts with C followed by 3+ digits
                     if (/^C\d{3,}$/.test(spn)) return spn;
-                    const supplierName = od.supplier && typeof od.supplier === 'object' ? (od.supplier.name || '').toLowerCase() : '';
-                    if (supplierName.includes('lcsc') || supplierName.includes('jlcpcb')) return spn;
+                    // Match by supplier name
+                    if (od.supplier && typeof od.supplier === 'object') {
+                        const name = (od.supplier.name || '').toLowerCase();
+                        if (name.includes('lcsc') || name.includes('jlcpcb')) return spn;
+                    }
                 }
                 return null;
             }
         }
-    </script>
-    <script>
+
+        // ════════════════════════════════════════════════════
+        //  Application State
+        // ════════════════════════════════════════════════════
+
         const client = new PartDBClient();
         let currentPage = 1;
         let totalPages = 1;
@@ -343,7 +438,10 @@
         let filterInStock = false;
         let filterFavorites = false;
 
-        // DOM refs
+        // ════════════════════════════════════════════════════
+        //  DOM References
+        // ════════════════════════════════════════════════════
+
         const searchInput = document.getElementById('searchInput');
         const btnSearch = document.getElementById('btnSearch');
         const resultsView = document.getElementById('resultsView');
@@ -366,7 +464,26 @@
         const filterFavoritesEl = document.getElementById('filterFavorites');
         const activeCategoryChip = document.getElementById('activeCategoryChip');
 
-        // ── Initialize ─────────────────────────────────────
+        // ════════════════════════════════════════════════════
+        //  View Management
+        // ════════════════════════════════════════════════════
+
+        function showResultsView() {
+            detailView.style.display = 'none';
+            resultsView.style.display = 'flex';
+        }
+
+        function showDetailView() {
+            resultsView.style.display = 'none';
+            detailView.style.display = 'flex';
+            // Scroll to top of detail view
+            detailView.scrollTop = 0;
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Initialize
+        // ════════════════════════════════════════════════════
+
         async function init() {
             await client.loadSettings();
             if (client.isConfigured()) {
@@ -376,33 +493,41 @@
             } else {
                 connBadge.className = 'conn-badge err';
                 connBadge.innerHTML = '<span class="dot"></span> Not configured';
-                categoryTree.innerHTML = '<div style="padding: 16px 8px; color: var(--text-muted); font-size: 11px; text-align: center;">Open Part-DB &rarr; Settings to connect</div>';
+                categoryTree.innerHTML =
+                    '<div style="padding: 16px 8px; color: var(--text-muted); font-size: 11px; text-align: center;">' +
+                    'Open Part-DB &rarr; Settings to connect</div>';
             }
         }
 
-        // ── Category Tree ──────────────────────────────────
+        // ════════════════════════════════════════════════════
+        //  Category Tree
+        // ════════════════════════════════════════════════════
+
         async function loadCategoryTree() {
             try {
                 const data = await client.getCategories(1, 500);
                 const cats = data['hydra:member'] || data.member || data || [];
                 renderTree(cats);
             } catch (e) {
-                categoryTree.innerHTML = `<div style="padding: 12px; color: var(--danger); font-size: 11px;">${escapeHtml(e.message)}</div>`;
+                categoryTree.innerHTML =
+                    '<div style="padding: 12px; color: var(--danger); font-size: 11px;">' +
+                    escapeHtml(e.message) + '</div>';
             }
         }
 
         function renderTree(cats) {
-            const byParent = {}, catMap = {};
+            // Build parent→children lookup
+            const byParent = {};
+            const catMap = {};
             for (const cat of cats) {
                 const id = PartDBClient.extractId(cat['@id'] || cat.id);
-                const parentIri = cat.parent;
                 let parentId = null;
-                if (parentIri) {
-                    parentId = typeof parentIri === 'object'
-                        ? PartDBClient.extractId(parentIri['@id'] || parentIri.id)
-                        : PartDBClient.extractId(parentIri);
+                if (cat.parent) {
+                    parentId = typeof cat.parent === 'object'
+                        ? PartDBClient.extractId(cat.parent['@id'] || cat.parent.id)
+                        : PartDBClient.extractId(cat.parent);
                 }
-                catMap[id] = { ...cat, _id: id };
+                catMap[id] = cat;
                 if (!byParent[parentId]) byParent[parentId] = [];
                 byParent[parentId].push(id);
             }
@@ -413,63 +538,76 @@
                 let html = '';
                 for (const id of children) {
                     const cat = catMap[id];
-                    const name = cat.name || `Category ${id}`;
+                    const name = cat.name || 'Category ' + id;
                     const hasKids = (byParent[id] || []).length > 0;
-                    html += `<div class="tree-node">
-                        <div class="tree-label" data-id="${id}" data-name="${escapeHtml(cat.full_path || name)}">
-                            <span class="tree-toggle ${hasKids ? '' : 'empty'}" data-id="${id}">&#9654;</span>
-                            <span class="tree-name">${escapeHtml(name)}</span>
-                        </div>
-                        ${hasKids ? `<div class="tree-children collapsed" data-parent="${id}">${buildNodes(id)}</div>` : ''}
-                    </div>`;
+                    const fullPath = escapeHtml(cat.full_path || name);
+                    html += '<div class="tree-node">' +
+                        '<div class="tree-label" data-id="' + id + '" data-name="' + fullPath + '">' +
+                            '<span class="tree-toggle ' + (hasKids ? '' : 'empty') + '" data-id="' + id + '">&#9654;</span>' +
+                            '<span class="tree-name">' + escapeHtml(name) + '</span>' +
+                        '</div>' +
+                        (hasKids ? '<div class="tree-children collapsed" data-parent="' + id + '">' + buildNodes(id) + '</div>' : '') +
+                    '</div>';
                 }
                 return html;
             }
 
-            let html = `<div class="tree-label active" data-id="" data-name="All">
-                <span class="tree-toggle empty">&#9654;</span>
-                <span class="tree-name" style="font-weight: 600;">All Categories</span>
-            </div>`;
+            let html = '<div class="tree-label active" data-id="" data-name="All">' +
+                '<span class="tree-toggle empty">&#9654;</span>' +
+                '<span class="tree-name" style="font-weight: 600;">All Categories</span>' +
+            '</div>';
             html += buildNodes(null);
             categoryTree.innerHTML = html;
 
-            categoryTree.addEventListener('click', (e) => {
-                const toggle = e.target.closest('.tree-toggle:not(.empty)');
-                if (toggle) {
-                    const id = toggle.dataset.id;
-                    const ch = categoryTree.querySelector(`.tree-children[data-parent="${id}"]`);
-                    if (ch) { ch.classList.toggle('collapsed'); toggle.classList.toggle('expanded'); }
-                    e.stopPropagation();
-                    return;
+            // Single event delegation handler for tree clicks
+            categoryTree.addEventListener('click', handleTreeClick);
+        }
+
+        function handleTreeClick(e) {
+            // Handle expand/collapse toggle
+            const toggle = e.target.closest('.tree-toggle:not(.empty)');
+            if (toggle) {
+                const id = toggle.dataset.id;
+                const childrenEl = categoryTree.querySelector('.tree-children[data-parent="' + id + '"]');
+                if (childrenEl) {
+                    childrenEl.classList.toggle('collapsed');
+                    toggle.classList.toggle('expanded');
                 }
-                const label = e.target.closest('.tree-label');
-                if (label) {
-                    const prev = categoryTree.querySelector('.tree-label.active');
-                    if (prev) prev.classList.remove('active');
-                    label.classList.add('active');
-                    selectedCategoryId = label.dataset.id;
-                    selectedCategoryName = label.dataset.name;
-                    updateCategoryChip();
-                    // Always show results view when clicking a category
-                    detailView.style.display = 'none';
-                    resultsView.style.display = 'flex';
-                    searchParts(1);
-                }
-            });
+                e.stopPropagation();
+                return;
+            }
+
+            // Handle category selection
+            const label = e.target.closest('.tree-label');
+            if (label) {
+                const prev = categoryTree.querySelector('.tree-label.active');
+                if (prev) prev.classList.remove('active');
+                label.classList.add('active');
+
+                selectedCategoryId = label.dataset.id;
+                selectedCategoryName = label.dataset.name;
+                updateCategoryChip();
+
+                // Always switch back to results view
+                showResultsView();
+                searchParts(1);
+            }
         }
 
         function updateCategoryChip() {
             if (selectedCategoryId) {
-                activeCategoryChip.innerHTML = `<div class="filter-chip active">
-                    ${escapeHtml(selectedCategoryName)} <span class="chip-x" id="clearCat">&times;</span>
-                </div>`;
-                document.getElementById('clearCat').addEventListener('click', (e) => {
+                activeCategoryChip.innerHTML =
+                    '<div class="filter-chip active">' +
+                    escapeHtml(selectedCategoryName) +
+                    ' <span class="chip-x" id="clearCat">&times;</span></div>';
+                document.getElementById('clearCat').addEventListener('click', function(e) {
                     e.stopPropagation();
-                    selectedCategoryId = ''; selectedCategoryName = '';
+                    selectedCategoryId = '';
+                    selectedCategoryName = '';
                     const prev = categoryTree.querySelector('.tree-label.active');
                     if (prev) prev.classList.remove('active');
-                    const all = categoryTree.querySelector('.tree-label[data-id=""]');
-                    if (all) all.classList.add('active');
+                    const allLabel = categoryTree.querySelector('.tree-label[data-id=""]');
+                    if (allLabel) allLabel.classList.add('active');
                     updateCategoryChip();
                     searchParts(1);
                 });
@@ -478,21 +616,33 @@
             }
         }
 
-        // ── Filters ────────────────────────────────────────
-        filterInStockEl.addEventListener('click', () => {
+        // ════════════════════════════════════════════════════
+        //  Filters
+        // ════════════════════════════════════════════════════
+
+        filterInStockEl.addEventListener('click', function() {
             filterInStock = !filterInStock;
             filterInStockEl.classList.toggle('active', filterInStock);
-            if (searchInput.value.trim() || selectedCategoryId || filterFavorites) searchParts(1);
+            if (searchInput.value.trim() || selectedCategoryId || filterFavorites) {
+                searchParts(1);
+            }
         });
-        filterFavoritesEl.addEventListener('click', () => {
+
+        filterFavoritesEl.addEventListener('click', function() {
             filterFavorites = !filterFavorites;
             filterFavoritesEl.classList.toggle('active', filterFavorites);
             searchParts(1);
         });
 
-        // ── Search ─────────────────────────────────────────
-        async function searchParts(page = 1) {
+        // ════════════════════════════════════════════════════
+        //  Search
+        // ════════════════════════════════════════════════════
+
+        async function searchParts(page) {
+            if (page === undefined) page = 1;
+
             const query = searchInput.value.trim();
+
             if (!query && !selectedCategoryId && !filterFavorites) {
                 showToast('Enter a search term, select a category, or enable a filter', 'warning');
                 return;
@@ -503,6 +653,8 @@
             }
 
             currentPage = page;
+
+            // Show loading, hide everything else
             resultsTable.style.display = 'none';
             resultsEmpty.style.display = 'none';
             resultsLoading.style.display = 'flex';
@@ -511,38 +663,55 @@
 
             try {
                 const baseParams = new URLSearchParams({
-                    page: page.toString(), itemsPerPage: '30', 'order[name]': 'asc',
+                    page: page.toString(),
+                    itemsPerPage: '30',
+                    'order[name]': 'asc',
                 });
-                if (selectedCategoryId) baseParams.set('category', selectedCategoryId + '++');
-                if (filterFavorites) baseParams.set('favorite', 'true');
+                if (selectedCategoryId) {
+                    baseParams.set('category', selectedCategoryId + '++');
+                }
+                if (filterFavorites) {
+                    baseParams.set('favorite', 'true');
+                }
 
-                let parts = [], totalItems = 0;
+                let parts = [];
+                let totalItems = 0;
 
                 if (query) {
-                    const wildcard = `%${query}%`;
+                    // Search across multiple fields, merging unique results
+                    const wildcard = '%' + query + '%';
                     const fields = ['name', 'description', 'manufacturer_product_number', 'ipn', 'tags'];
                     const seenIds = new Set();
+
                     for (const field of fields) {
                         const params = new URLSearchParams(baseParams);
                         params.set(field, wildcard);
                         try {
-                            const data = await client.request(`/api/parts?${params}`);
-                            for (const p of (data['hydra:member'] || data.member || data || [])) {
+                            const data = await client.request('/api/parts?' + params);
+                            const found = data['hydra:member'] || data.member || data || [];
+                            for (const p of found) {
                                 const pid = String(PartDBClient.extractId(p['@id'] || p.id));
-                                if (!seenIds.has(pid)) { seenIds.add(pid); parts.push(p); }
+                                if (!seenIds.has(pid)) {
+                                    seenIds.add(pid);
+                                    parts.push(p);
+                                }
                             }
-                        } catch (e) {}
+                        } catch (fieldErr) {
+                            // Skip fields that error
+                        }
                         if (parts.length >= 30) break;
                     }
                     totalItems = parts.length;
                 } else {
-                    const data = await client.request(`/api/parts?${baseParams}`);
+                    // Category/favorites browse only
+                    const data = await client.request('/api/parts?' + baseParams);
                     parts = data['hydra:member'] || data.member || data || [];
                     totalItems = data['hydra:totalItems'] || parts.length;
                 }
 
+                // Client-side stock filter
                 if (filterInStock) {
-                    parts = parts.filter(p => {
+                    parts = parts.filter(function(p) {
                         const s = PartDBClient.calculateStock(p.partLots || []);
                         return s === '?' || s > 0;
                     });
@@ -553,190 +722,355 @@
                 resultsLoading.style.display = 'none';
 
                 if (parts.length === 0) {
-                    resultsEmpty.innerHTML = '<div class="icon">&#128269;</div><div>No parts found</div><div style="font-size:11px;margin-top:4px;color:var(--text-muted);">Try a different search term or category</div>';
+                    resultsEmpty.innerHTML =
+                        '<div class="icon">&#128269;</div>' +
+                        '<div>No parts found</div>' +
+                        '<div style="font-size:11px;margin-top:4px;color:var(--text-muted);">' +
+                        'Try a different search term or category</div>';
                     resultsEmpty.style.display = 'block';
                     return;
                 }
 
-                parts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                // Sort merged results by name
+                parts.sort(function(a, b) {
+                    return (a.name || '').localeCompare(b.name || '');
+                });
 
+                // Render rows
                 resultsBody.innerHTML = '';
-                for (const part of parts) {
-                    const id = PartDBClient.extractId(part['@id'] || part.id);
-                    const stock = PartDBClient.calculateStock(part.partLots || []);
-                    const stockCls = PartDBClient.stockClass(stock, part.minamount || 0);
-                    const imgUrl = client.getImageUrl(part);
-                    const locations = (part.partLots || [])
-                        .filter(l => l.storage_location)
-                        .map(l => typeof l.storage_location === 'object' ? l.storage_location.name : l.storage_location)
-                        .filter(Boolean);
-                    const locationStr = [...new Set(locations)].join(', ');
-                    let catName = '';
-                    if (part.category && typeof part.category === 'object')
-                        catName = part.category.full_path || part.category.name || '';
-                    const mpn = part.manufacturer_product_number || '';
+                for (var i = 0; i < parts.length; i++) {
+                    var part = parts[i];
+                    var id = PartDBClient.extractId(part['@id'] || part.id);
+                    var stock = PartDBClient.calculateStock(part.partLots || []);
+                    var stockCls = PartDBClient.stockClass(stock, part.minamount || 0);
+                    var imgUrl = client.getImageUrl(part);
 
-                    const tr = document.createElement('tr');
-                    tr.onclick = () => showPartDetail(id);
-                    tr.innerHTML = `
-                        <td style="width:32px;padding:4px 6px;">${imgUrl ? `<img class="part-thumb" src="${escapeHtml(imgUrl)}" alt="" onerror="this.style.display='none'">` : '<span style="display:inline-block;width:28px;height:28px;background:var(--bg-tertiary);border-radius:3px;border:1px solid var(--border-color);"></span>'}</td>
-                        <td><span class="part-name">${escapeHtml(part.name)}</span></td>
-                        <td title="${escapeHtml(part.description || '')}">${escapeHtml(part.description || '-')}</td>
-                        <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(catName || '-')}</td>
-                        <td style="font-family:var(--font-mono);font-size:11px;">${mpn ? `<span class="copyable" onclick="event.stopPropagation();copyToClipboard('${escapeHtml(mpn)}',this)" title="Click to copy">${escapeHtml(mpn)}</span>` : '-'}</td>
-                        <td><span class="stock-badge ${stockCls}">${stock}</span></td>
-                        <td style="font-size:11px;">${escapeHtml(locationStr || '-')}</td>
-                    `;
+                    // Storage locations
+                    var locations = (part.partLots || [])
+                        .filter(function(l) { return l.storage_location; })
+                        .map(function(l) {
+                            return typeof l.storage_location === 'object' ? l.storage_location.name : l.storage_location;
+                        })
+                        .filter(Boolean);
+                    var locationStr = Array.from(new Set(locations)).join(', ');
+
+                    // Category
+                    var catName = '';
+                    if (part.category && typeof part.category === 'object') {
+                        catName = part.category.full_path || part.category.name || '';
+                    }
+
+                    // LCSC number (preferred) or MPN
+                    var lcsc = PartDBClient.getLcscNumber(part);
+                    var mpn = part.manufacturer_product_number || '';
+                    var partNumber = lcsc || mpn;
+                    var partNumberLabel = lcsc ? lcsc : mpn;
+
+                    // Build row
+                    var tr = document.createElement('tr');
+                    tr.setAttribute('data-part-id', id);
+                    tr.onclick = (function(partId) {
+                        return function() { showPartDetail(partId); };
+                    })(id);
+
+                    // Image cell
+                    var imgHtml = imgUrl
+                        ? '<img class="part-thumb" src="' + escapeHtml(imgUrl) + '" alt="" onerror="this.style.display=\'none\'">'
+                        : '<span style="display:inline-block;width:28px;height:28px;background:var(--bg-tertiary);border-radius:3px;border:1px solid var(--border-color);"></span>';
+
+                    // Part number cell
+                    var pnHtml = '-';
+                    if (partNumber) {
+                        pnHtml = '<span class="copyable" onclick="event.stopPropagation();copyToClipboard(\'' + escapeHtml(partNumber) + '\')" title="Click to copy">' +
+                            escapeHtml(partNumberLabel) + '</span>';
+                    }
+
+                    tr.innerHTML =
+                        '<td style="width:32px;padding:4px 6px;">' + imgHtml + '</td>' +
+                        '<td><span class="part-name">' + escapeHtml(part.name) + '</span></td>' +
+                        '<td title="' + escapeHtml(part.description || '') + '">' + escapeHtml(part.description || '-') + '</td>' +
+                        '<td style="font-size:11px;color:var(--text-muted);">' + escapeHtml(catName || '-') + '</td>' +
+                        '<td style="font-family:var(--font-mono);font-size:11px;">' + pnHtml + '</td>' +
+                        '<td><span class="stock-badge ' + stockCls + '">' + stock + '</span></td>' +
+                        '<td style="font-size:11px;">' + escapeHtml(locationStr || '-') + '</td>';
+
                     resultsBody.appendChild(tr);
                 }
 
                 resultsTable.style.display = 'block';
                 resultsInfo.style.display = 'block';
-                resultsCount.textContent = `${totalItems} part${totalItems !== 1 ? 's' : ''} found`;
+                resultsCount.textContent = totalItems + ' part' + (totalItems !== 1 ? 's' : '') + ' found';
 
+                // Scroll results to top
+                resultsTable.scrollTop = 0;
+
+                // Pagination
                 if (totalPages > 1) {
                     paginationBar.style.display = 'flex';
-                    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                    pageInfo.textContent = 'Page ' + currentPage + ' of ' + totalPages;
                     btnPrevPage.disabled = currentPage <= 1;
                     btnNextPage.disabled = currentPage >= totalPages;
                 }
             } catch (e) {
                 resultsLoading.style.display = 'none';
-                resultsEmpty.innerHTML = `<div class="icon">&#9888;</div><div style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+                resultsEmpty.innerHTML =
+                    '<div class="icon">&#9888;</div>' +
+                    '<div style="color:var(--danger);">' + escapeHtml(e.message) + '</div>';
                 resultsEmpty.style.display = 'block';
             }
         }
 
-        // ── Part Detail ────────────────────────────────────
+        // ════════════════════════════════════════════════════
+        //  Part Detail
+        // ════════════════════════════════════════════════════
+
         async function showPartDetail(partId) {
-            resultsView.style.display = 'none';
-            detailView.style.display = 'flex';
-            detailContent.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
+            showDetailView();
+            detailContent.innerHTML =
+                '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
+
             try {
-                const part = await client.getPart(partId);
+                var part = await client.getPart(partId);
                 renderPartDetail(part);
             } catch (e) {
-                detailContent.innerHTML = `<div style="color:var(--danger);">Failed: ${escapeHtml(e.message)}</div>`;
+                detailContent.innerHTML =
+                    '<div style="color:var(--danger);">Failed to load part: ' + escapeHtml(e.message) + '</div>';
             }
         }
 
         function renderPartDetail(part) {
-            const stock = PartDBClient.calculateStock(part.partLots || []);
-            const stockCls = PartDBClient.stockClass(stock, part.minamount || 0);
-            const imgUrl = client.getImageUrl(part);
-            const datasheetUrl = client.getDatasheetUrl(part);
-            const lcsc = PartDBClient.getLcscNumber(part);
+            var stock = PartDBClient.calculateStock(part.partLots || []);
+            var stockCls = PartDBClient.stockClass(stock, part.minamount || 0);
+            var imgUrl = client.getImageUrl(part);
+            var datasheetUrl = client.getDatasheetUrl(part);
+            var lcsc = PartDBClient.getLcscNumber(part);
+            var partId = PartDBClient.extractId(part['@id'] || part.id);
 
-            let catName = '', mfr = '', footprint = '';
-            if (part.category && typeof part.category === 'object') catName = part.category.full_path || part.category.name || '';
-            if (part.manufacturer && typeof part.manufacturer === 'object') mfr = part.manufacturer.name || '';
-            if (part.footprint && typeof part.footprint === 'object') footprint = part.footprint.name || '';
-            const mpn = part.manufacturer_product_number || '';
-            const ipn = part.ipn || '';
+            var catName = '';
+            if (part.category && typeof part.category === 'object') {
+                catName = part.category.full_path || part.category.name || '';
+            }
+            var mfr = '';
+            if (part.manufacturer && typeof part.manufacturer === 'object') {
+                mfr = part.manufacturer.name || '';
+            }
+            var footprint = '';
+            if (part.footprint && typeof part.footprint === 'object') {
+                footprint = part.footprint.name || '';
+            }
+            var mpn = part.manufacturer_product_number || '';
+            var ipn = part.ipn || '';
 
-            let html = '';
-            if (imgUrl) html += `<img class="part-image" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(part.name)}" onerror="this.style.display='none'">`;
-            html += `<h3>${escapeHtml(part.name)}</h3>`;
+            var html = '';
 
-            // Quick actions
-            html += `<div style="margin-bottom:12px; display:flex; gap:6px; flex-wrap:wrap;">`;
+            // Part image (floated right)
+            if (imgUrl) {
+                html += '<img class="part-image" src="' + escapeHtml(imgUrl) + '" alt="' + escapeHtml(part.name) + '" onerror="this.style.display=\'none\'">';
+            }
+
+            // Title
+            html += '<h3 style="margin-bottom:12px;">' + escapeHtml(part.name) + '</h3>';
+
+            // Action buttons
+            html += '<div class="action-bar">';
+            if (lcsc) {
+                html += '<button class="btn-action primary" onclick="placeInSchematic(\'' + escapeHtml(lcsc) + '\')">&#9889; Place in Schematic</button>';
+            }
             if (datasheetUrl) {
-                html += `<a href="${escapeHtml(datasheetUrl)}" target="_blank" class="btn btn-sm" style="text-decoration:none;">&#128196; Datasheet</a>`;
+                html += '<a href="' + escapeHtml(datasheetUrl) + '" target="_blank" class="btn-action">&#128196; Datasheet</a>';
+            } else if (lcsc) {
+                html += '<a href="https://datasheet.lcsc.com/lcsc/' + escapeHtml(lcsc) + '.pdf" target="_blank" class="btn-action">&#128196; LCSC Datasheet</a>';
             }
             if (lcsc) {
-                const lcscDatasheet = `https://datasheet.lcsc.com/lcsc/${lcsc}.pdf`;
-                if (!datasheetUrl) html += `<a href="${lcscDatasheet}" target="_blank" class="btn btn-sm" style="text-decoration:none;">&#128196; LCSC Datasheet</a>`;
-                html += `<a href="https://www.lcsc.com/product-detail/${lcsc}.html" target="_blank" class="btn btn-sm" style="text-decoration:none;">LCSC: ${escapeHtml(lcsc)}</a>`;
+                html += '<a href="https://www.lcsc.com/product-detail/' + escapeHtml(lcsc) + '.html" target="_blank" class="btn-action">LCSC: ' + escapeHtml(lcsc) + '</a>';
             }
-            const partId = PartDBClient.extractId(part['@id'] || part.id);
-            html += `<a href="${client.baseUrl}/en/part/${partId}" target="_blank" class="btn btn-sm" style="text-decoration:none;">Open in Part-DB</a>`;
-            html += `</div>`;
+            html += '<a href="' + client.baseUrl + '/en/part/' + partId + '" target="_blank" class="btn-action">Open in Part-DB</a>';
+            html += '</div>';
 
-            // General
-            html += `<div class="detail-section">
-                <div class="detail-section-title">General</div>
-                <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${escapeHtml(part.description || '-')}</span></div>
-                <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value">${escapeHtml(catName || '-')}</span></div>
-                <div class="detail-row"><span class="detail-label">Manufacturer</span><span class="detail-value">${escapeHtml(mfr || '-')}</span></div>
-                <div class="detail-row"><span class="detail-label">MPN</span><span class="detail-value" style="font-family:var(--font-mono);">${mpn ? `<span class="copyable" onclick="copyToClipboard('${escapeHtml(mpn)}',this)">${escapeHtml(mpn)}</span>` : '-'}</span></div>
-                <div class="detail-row"><span class="detail-label">Footprint</span><span class="detail-value">${escapeHtml(footprint || '-')}</span></div>
-                ${ipn ? `<div class="detail-row"><span class="detail-label">IPN</span><span class="detail-value" style="font-family:var(--font-mono);"><span class="copyable" onclick="copyToClipboard('${escapeHtml(ipn)}',this)">${escapeHtml(ipn)}</span></span></div>` : ''}
-                ${lcsc ? `<div class="detail-row"><span class="detail-label">LCSC</span><span class="detail-value" style="font-family:var(--font-mono);"><span class="copyable" onclick="copyToClipboard('${escapeHtml(lcsc)}',this)">${escapeHtml(lcsc)}</span></span></div>` : ''}
-                ${part.tags ? `<div class="detail-row"><span class="detail-label">Tags</span><span class="detail-value">${escapeHtml(part.tags)}</span></div>` : ''}
-                ${part.comment ? `<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${escapeHtml(part.comment)}</span></div>` : ''}
-            </div>`;
+            // General section
+            html += '<div class="detail-section">' +
+                '<div class="detail-section-title">General</div>' +
+                buildDetailRow('Description', escapeHtml(part.description || '-')) +
+                buildDetailRow('Category', escapeHtml(catName || '-')) +
+                buildDetailRow('Manufacturer', escapeHtml(mfr || '-')) +
+                buildDetailRow('MPN', mpn ? buildCopyable(mpn) : '-', true) +
+                buildDetailRow('Footprint', escapeHtml(footprint || '-'));
+            if (ipn) html += buildDetailRow('IPN', buildCopyable(ipn), true);
+            if (lcsc) html += buildDetailRow('LCSC', buildCopyable(lcsc), true);
+            if (part.tags) html += buildDetailRow('Tags', escapeHtml(part.tags));
+            if (part.comment) html += buildDetailRow('Notes', escapeHtml(part.comment));
+            html += '</div>';
 
-            // Stock
-            html += `<div class="detail-section">
-                <div class="detail-section-title">Stock</div>
-                <div class="detail-row"><span class="detail-label">Total</span><span class="detail-value"><span class="stock-badge ${stockCls}">${stock}</span></span></div>
-                ${part.minamount ? `<div class="detail-row"><span class="detail-label">Min. Amount</span><span class="detail-value">${part.minamount}</span></div>` : ''}`;
+            // Stock section
+            html += '<div class="detail-section">' +
+                '<div class="detail-section-title">Stock</div>' +
+                '<div class="detail-row"><span class="detail-label">Total</span>' +
+                '<span class="detail-value"><span class="stock-badge ' + stockCls + '">' + stock + '</span></span></div>';
+            if (part.minamount) {
+                html += buildDetailRow('Min. Amount', String(part.minamount));
+            }
             if (part.partLots && part.partLots.length > 0) {
-                for (const lot of part.partLots) {
-                    let locName = '';
-                    if (lot.storage_location && typeof lot.storage_location === 'object')
+                for (var i = 0; i < part.partLots.length; i++) {
+                    var lot = part.partLots[i];
+                    var locName = '';
+                    if (lot.storage_location && typeof lot.storage_location === 'object') {
                         locName = lot.storage_location.full_path || lot.storage_location.name || '';
-                    const qty = lot.instock_unknown ? '?' : (lot.amount || 0);
-                    html += `<div class="detail-row"><span class="detail-label" style="padding-left:12px;">${escapeHtml(locName || 'Unassigned')}</span><span class="detail-value">${qty}${lot.comment ? ` (${escapeHtml(lot.comment)})` : ''}</span></div>`;
+                    }
+                    var qty = lot.instock_unknown ? '?' : (lot.amount || 0);
+                    var lotText = String(qty);
+                    if (lot.comment) lotText += ' (' + escapeHtml(lot.comment) + ')';
+                    html += '<div class="detail-row">' +
+                        '<span class="detail-label" style="padding-left:12px;">' + escapeHtml(locName || 'Unassigned') + '</span>' +
+                        '<span class="detail-value">' + lotText + '</span></div>';
                 }
             }
-            html += `</div>`;
+            html += '</div>';
 
-            // Suppliers
+            // Suppliers section
             if (part.orderdetails && part.orderdetails.length > 0) {
-                html += `<div class="detail-section"><div class="detail-section-title">Suppliers</div>`;
-                for (const od of part.orderdetails) {
-                    let sn = od.supplier && typeof od.supplier === 'object' ? od.supplier.name || '' : '';
-                    html += `<div class="supplier-card">
-                        <div class="supplier-name">${escapeHtml(sn || 'Unknown')}</div>
-                        <div class="supplier-spn">SPN: <span class="copyable" onclick="copyToClipboard('${escapeHtml(od.supplierpartnr || '')}',this)">${escapeHtml(od.supplierpartnr || '-')}</span></div>
-                        ${od.supplier_product_url ? `<div><a href="${escapeHtml(od.supplier_product_url)}" target="_blank" style="color:var(--accent);font-size:11px;">View at supplier</a></div>` : ''}`;
+                html += '<div class="detail-section"><div class="detail-section-title">Suppliers</div>';
+                for (var j = 0; j < part.orderdetails.length; j++) {
+                    var od = part.orderdetails[j];
+                    var supplierName = (od.supplier && typeof od.supplier === 'object') ? od.supplier.name || '' : '';
+                    html += '<div class="supplier-card">' +
+                        '<div class="supplier-name">' + escapeHtml(supplierName || 'Unknown') + '</div>' +
+                        '<div class="supplier-spn">SPN: ' + buildCopyable(od.supplierpartnr || '-') + '</div>';
+                    if (od.supplier_product_url) {
+                        html += '<div><a href="' + escapeHtml(od.supplier_product_url) + '" target="_blank" style="color:var(--accent);font-size:11px;">View at supplier</a></div>';
+                    }
                     if (od.pricedetails && od.pricedetails.length > 0) {
-                        for (const pd of od.pricedetails) {
-                            const cur = pd.currency && typeof pd.currency === 'object' ? pd.currency.iso_code : '';
-                            html += `<div class="supplier-price">${pd.price || '?'} ${cur} (min qty: ${pd.min_discount_quantity || 1})</div>`;
+                        for (var k = 0; k < od.pricedetails.length; k++) {
+                            var pd = od.pricedetails[k];
+                            var currency = (pd.currency && typeof pd.currency === 'object') ? pd.currency.iso_code : '';
+                            html += '<div class="supplier-price">' + (pd.price || '?') + ' ' + currency +
+                                ' (min qty: ' + (pd.min_discount_quantity || 1) + ')</div>';
                         }
                     }
-                    html += `</div>`;
+                    html += '</div>';
                 }
-                html += `</div>`;
+                html += '</div>';
             }
 
-            // Parameters
+            // Parameters section
             if (part.parameters && part.parameters.length > 0) {
-                html += `<div class="detail-section"><div class="detail-section-title">Parameters</div><table class="param-table" style="font-size:12px;">`;
-                for (const p of part.parameters) {
-                    let v = p.value_text || '';
-                    if (!v && p.value_typical != null) { v = String(p.value_typical); if (p.unit) v += ` ${p.unit}`; }
-                    if (!v && p.value_min != null && p.value_max != null) { v = `${p.value_min}–${p.value_max}`; if (p.unit) v += ` ${p.unit}`; }
-                    html += `<tr><td style="padding:2px 8px 2px 0;width:130px;">${escapeHtml(p.name)}</td><td style="padding:2px 0;">${escapeHtml(v || '-')}</td></tr>`;
+                html += '<div class="detail-section"><div class="detail-section-title">Parameters</div>' +
+                    '<table class="param-table" style="font-size:12px;width:100%;border-collapse:collapse;">';
+                for (var m = 0; m < part.parameters.length; m++) {
+                    var param = part.parameters[m];
+                    var val = param.value_text || '';
+                    if (!val && param.value_typical != null) {
+                        val = String(param.value_typical);
+                        if (param.unit) val += ' ' + param.unit;
+                    }
+                    if (!val && param.value_min != null && param.value_max != null) {
+                        val = param.value_min + ' – ' + param.value_max;
+                        if (param.unit) val += ' ' + param.unit;
+                    }
+                    html += '<tr><td style="padding:3px 10px 3px 0;width:130px;">' + escapeHtml(param.name) +
+                        '</td><td style="padding:3px 0;">' + escapeHtml(val || '-') + '</td></tr>';
                 }
-                html += `</table></div>`;
+                html += '</table></div>';
             }
 
-            // Attachments
+            // Attachments section
             if (part.attachments && part.attachments.length > 0) {
-                html += `<div class="detail-section"><div class="detail-section-title">Attachments</div>`;
-                for (const att of part.attachments) {
-                    const name = att.name || att.original_filename || 'Attachment';
-                    const url = att.url || att.internal_path || '';
-                    if (url) {
-                        const fullUrl = url.startsWith('http') ? url : `${client.baseUrl}${url}`;
-                        html += `<div class="detail-row"><span class="detail-label">${escapeHtml(name)}</span><span class="detail-value"><a href="${escapeHtml(fullUrl)}" target="_blank">Open</a></span></div>`;
+                html += '<div class="detail-section"><div class="detail-section-title">Attachments</div>';
+                for (var n = 0; n < part.attachments.length; n++) {
+                    var att = part.attachments[n];
+                    var attName = att.name || att.original_filename || 'Attachment';
+                    var attUrl = att.url || att.internal_path || '';
+                    if (attUrl) {
+                        var fullUrl = attUrl.startsWith('http') ? attUrl : client.baseUrl + attUrl;
+                        html += buildDetailRow(attName, '<a href="' + escapeHtml(fullUrl) + '" target="_blank">Open</a>');
                     }
                 }
-                html += `</div>`;
+                html += '</div>';
             }
 
             detailContent.innerHTML = html;
         }
 
-        // ── Events ─────────────────────────────────────────
-        btnSearch.addEventListener('click', () => { detailView.style.display='none'; resultsView.style.display='flex'; searchParts(1); });
-        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { detailView.style.display='none'; resultsView.style.display='flex'; searchParts(1); } });
-        btnPrevPage.addEventListener('click', () => { if (currentPage > 1) searchParts(currentPage - 1); });
-        btnNextPage.addEventListener('click', () => { if (currentPage < totalPages) searchParts(currentPage + 1); });
-        btnBack.addEventListener('click', () => { detailView.style.display = 'none'; resultsView.style.display = 'flex'; });
+        /**
+         * Build a detail row with label and value.
+         */
+        function buildDetailRow(label, valueHtml, isMono) {
+            var style = isMono ? ' style="font-family:var(--font-mono);"' : '';
+            return '<div class="detail-row">' +
+                '<span class="detail-label">' + escapeHtml(label) + '</span>' +
+                '<span class="detail-value"' + style + '>' + valueHtml + '</span></div>';
+        }
+
+        /**
+         * Build a copyable text span.
+         */
+        function buildCopyable(text) {
+            if (!text || text === '-') return escapeHtml(text || '-');
+            return '<span class="copyable" onclick="copyToClipboard(\'' + escapeHtml(text) + '\')" title="Click to copy">' +
+                escapeHtml(text) + '</span>';
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Place in Schematic (LCSC integration)
+        // ════════════════════════════════════════════════════
+
+        async function placeInSchematic(lcscNumber) {
+            showToast('Looking up LCSC ' + lcscNumber + '...', 'warning');
+            try {
+                // Look up the LCSC device in EasyEDA's library
+                var devices = await eda.lib_Device.getByLcscIds([lcscNumber]);
+                if (!devices || devices.length === 0) {
+                    showToast('LCSC part ' + lcscNumber + ' not found in library', 'error');
+                    return;
+                }
+                var device = devices[0];
+
+                // Place the component interactively (attached to mouse cursor)
+                var success = await eda.sch_PrimitiveComponent.placeComponentWithMouse({
+                    libraryUuid: device.libraryUuid,
+                    uuid: device.uuid,
+                });
+
+                if (success) {
+                    showToast('Component placed successfully!');
+                } else {
+                    showToast('Placement cancelled', 'warning');
+                }
+            } catch (e) {
+                showToast('Failed to place: ' + e.message, 'error');
+            }
+        }
+
+        // ════════════════════════════════════════════════════
+        //  Event Listeners
+        // ════════════════════════════════════════════════════
+
+        btnSearch.addEventListener('click', function() {
+            showResultsView();
+            searchParts(1);
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                showResultsView();
+                searchParts(1);
+            }
+        });
+
+        btnPrevPage.addEventListener('click', function() {
+            if (currentPage > 1) searchParts(currentPage - 1);
+        });
+
+        btnNextPage.addEventListener('click', function() {
+            if (currentPage < totalPages) searchParts(currentPage + 1);
+        });
+
+        btnBack.addEventListener('click', function() {
+            showResultsView();
+        });
+
+        // ════════════════════════════════════════════════════
+        //  Start
+        // ════════════════════════════════════════════════════
 
         init();
     </script>
