@@ -1,0 +1,43 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Get extension filename
+        id: filename
+        run: |
+          EEXT_FILE=$(ls build/dist/*.eext)
+          echo "path=$EEXT_FILE" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename $EEXT_FILE)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.filename.outputs.path }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
