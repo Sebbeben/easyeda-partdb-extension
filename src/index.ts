@@ -28,7 +28,7 @@ export function openSettings(): void {
  */
 export function about(): void {
     eda.sys_Dialog.showInformationMessage(
-        `Part-DB Integration v${extensionConfig.version}\n\nSearch and browse your Part-DB inventory directly from EasyEDA Pro.`,
+        `Part-DB Integration v${extensionConfig.version}\n\nSearch and browse your Part-DB inventory directly from EasyEDA Pro.\n\nGitHub: https://github.com/Sebbeben/easyeda-partdb-extension`,
         'About Part-DB Integration'
     );
 }
