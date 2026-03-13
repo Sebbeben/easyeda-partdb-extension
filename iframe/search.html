@@ -156,8 +156,75 @@
             div.textContent = str;
             return div.innerHTML;
         }
+
+        // PartDBClient (inlined — iframe sandbox blocks external script src)
+        class PartDBClient {
+            constructor() { this.baseUrl = ''; this.token = ''; }
+            async loadSettings() {
+                try {
+                    this.baseUrl = (await eda.sys_Storage.getExtensionUserConfig('PARTDB_URL')) || '';
+                    this.token = (await eda.sys_Storage.getExtensionUserConfig('PARTDB_TOKEN')) || '';
+                } catch (e) {}
+                this.baseUrl = this.baseUrl.replace(/\/+$/, '');
+            }
+            isConfigured() { return this.baseUrl && this.token; }
+            async request(endpoint, options = {}) {
+                if (!this.isConfigured()) throw new Error('Part-DB connection not configured.');
+                const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        ...(options.headers || {}),
+                    },
+                });
+                if (!response.ok) {
+                    if (response.status === 401) throw new Error('Authentication failed. Check your API token.');
+                    if (response.status === 403) throw new Error('Access denied. Token may lack required permissions.');
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            }
+            async testConnection() { return this.request('/api/tokens/current'); }
+            async searchParts(query, page = 1, itemsPerPage = 30) {
+                const params = new URLSearchParams({ name: query, page: page.toString(), itemsPerPage: itemsPerPage.toString() });
+                return this.request(`/api/parts?${params}`);
+            }
+            async getPart(id) { return this.request(`/api/parts/${id}`); }
+            async getCategories(page = 1, itemsPerPage = 200) {
+                const params = new URLSearchParams({ page: page.toString(), itemsPerPage: itemsPerPage.toString(), 'order[name]': 'asc' });
+                return this.request(`/api/categories?${params}`);
+            }
+            async getPartsByCategory(categoryId, page = 1, itemsPerPage = 30) {
+                const params = new URLSearchParams({ category: `/api/categories/${categoryId}`, page: page.toString(), itemsPerPage: itemsPerPage.toString() });
+                return this.request(`/api/parts?${params}`);
+            }
+            async getPartOrderDetails(partId) { return this.request(`/api/parts/${partId}/orderdetails`); }
+            static extractId(iri) {
+                if (!iri) return null;
+                if (typeof iri === 'number') return iri;
+                const match = String(iri).match(/\/(\d+)$/);
+                return match ? parseInt(match[1], 10) : null;
+            }
+            static calculateStock(partLots) {
+                if (!partLots || partLots.length === 0) return 0;
+                let total = 0, hasUnknown = false;
+                for (const lot of partLots) {
+                    if (lot.instock_unknown) { hasUnknown = true; continue; }
+                    if (lot.expiration_date && new Date(lot.expiration_date) < new Date()) continue;
+                    total += lot.amount || 0;
+                }
+                return (total === 0 && hasUnknown) ? '?' : total;
+            }
+            static stockClass(stock, minAmount = 0) {
+                if (stock === '?') return 'stock-low';
+                if (stock <= 0) return 'stock-zero';
+                if (minAmount > 0 && stock < minAmount) return 'stock-low';
+                return 'stock-ok';
+            }
+        }
     </script>
-    <script src="js/api.js"></script>
     <script>
         const client = new PartDBClient();
         let currentPage = 1;
@@ -519,7 +586,11 @@
         });
 
         btnSettings.addEventListener('click', () => {
-            eda.sys_IFrame.openIFrame('/iframe/settings.html', 480, 380, 'partdb-settings');
+            try {
+                eda.sys_IFrame.openIFrame('/iframe/settings.html', 480, 380, 'partdb-settings');
+            } catch (e) {
+                showToast('Open Settings from the Part-DB menu instead', 'warning');
+            }
         });
 
         // Init
