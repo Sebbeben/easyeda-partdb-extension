@@ -1,0 +1,16 @@
+/.git/
+/.github/
+/.husky/
+/.vscode/
+/build/
+/config/
+/node_modules/
+/src/
+/.editorconfig
+/.gitattributes
+/.gitignore
+/.edaignore
+/package.json
+/package-lock.json
+/tsconfig.json
+/README.md

@@ -1,0 +1,82 @@
+{
+  "name": "partdb-integration",
+  "uuid": "a3f7b2c1d4e5f6a7b8c9d0e1f2a3b4c5",
+  "displayName": "Part-DB Integration",
+  "description": "Search and browse your Part-DB inventory directly from EasyEDA Pro. View stock levels, supplier info, datasheets, and part parameters.",
+  "version": "0.1.0",
+  "publisher": "Sebbeben",
+  "engines": {
+    "eda": "^2.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sebbeben/easyeda-partdb-extension"
+  },
+  "categories": "Other",
+  "keywords": ["Part-DB", "inventory", "parts", "BOM", "stock"],
+  "images": {
+    "logo": "./images/logo.png"
+  },
+  "homepage": "https://github.com/Sebbeben/easyeda-partdb-extension",
+  "bugs": "https://github.com/Sebbeben/easyeda-partdb-extension/issues",
+  "activationEvents": {},
+  "entry": "./dist/index",
+  "dependentExtensions": {},
+  "headerMenus": {
+    "home": [
+      {
+        "id": "PartDB1",
+        "title": "Part-DB",
+        "menuItems": [
+          {
+            "id": "PartDBSearch",
+            "title": "Search Parts...",
+            "registerFn": "openSearch"
+          },
+          {
+            "id": "PartDBSettings",
+            "title": "Settings...",
+            "registerFn": "openSettings"
+          },
+          {
+            "id": "PartDBAbout",
+            "title": "About",
+            "registerFn": "about"
+          }
+        ]
+      }
+    ],
+    "sch": [
+      {
+        "id": "PartDB2",
+        "title": "Part-DB",
+        "menuItems": [
+          {
+            "id": "PartDBSearchSch",
+            "title": "Search Parts...",
+            "registerFn": "openSearch"
+          },
+          {
+            "id": "PartDBSettingsSch",
+            "title": "Settings...",
+            "registerFn": "openSettings"
+          }
+        ]
+      }
+    ],
+    "pcb": [
+      {
+        "id": "PartDB3",
+        "title": "Part-DB",
+        "menuItems": [
+          {
+            "id": "PartDBSearchPcb",
+            "title": "Search Parts...",
+            "registerFn": "openSearch"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Part-DB Settings</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <h3 style="margin-bottom: 16px; font-size: 15px;">Part-DB Connection Settings</h3>
+
+            <div class="form-group">
+                <label for="serverUrl">Server URL</label>
+                <input type="url" id="serverUrl" placeholder="https://partdb.example.com">
+                <div class="form-hint">The base URL of your Part-DB instance (no trailing slash)</div>
+            </div>
+
+            <div class="form-group">
+                <label for="apiToken">API Token</label>
+                <input type="password" id="apiToken" placeholder="tcp_...">
+                <div class="form-hint">
+                    Create a token in Part-DB: User Settings &rarr; API Tokens.
+                    Minimum level: READ_ONLY.
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Connection Status</label>
+                <div id="connectionStatus" style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+                    <span class="status-dot status-disconnected"></span>
+                    <span>Not configured</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <button class="btn" id="btnTest">Test Connection</button>
+            <button class="btn btn-primary" id="btnSave">Save</button>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        const serverUrlInput = document.getElementById('serverUrl');
+        const apiTokenInput = document.getElementById('apiToken');
+        const statusEl = document.getElementById('connectionStatus');
+        const btnTest = document.getElementById('btnTest');
+        const btnSave = document.getElementById('btnSave');
+
+        // Load existing settings
+        async function loadSettings() {
+            try {
+                const url = await eda.sys_Storage.getExtensionUserConfig('PARTDB_URL');
+                const token = await eda.sys_Storage.getExtensionUserConfig('PARTDB_TOKEN');
+                if (url) serverUrlInput.value = url;
+                if (token) apiTokenInput.value = token;
+                if (url && token) {
+                    setStatus('pending', 'Configured (not tested)');
+                }
+            } catch (e) {
+                // First time setup
+            }
+        }
+
+        function setStatus(state, text) {
+            const dot = statusEl.querySelector('.status-dot');
+            dot.className = 'status-dot';
+            if (state === 'connected') dot.classList.add('status-connected');
+            else if (state === 'disconnected') dot.classList.add('status-disconnected');
+            else dot.classList.add('status-pending');
+            statusEl.querySelector('span:last-child').textContent = text;
+        }
+
+        // Save settings
+        btnSave.addEventListener('click', async () => {
+            const url = serverUrlInput.value.trim().replace(/\/+$/, '');
+            const token = apiTokenInput.value.trim();
+
+            if (!url) {
+                showToast('Please enter a server URL', 'error');
+                return;
+            }
+            if (!token) {
+                showToast('Please enter an API token', 'error');
+                return;
+            }
+
+            try {
+                await eda.sys_Storage.setExtensionUserConfig('PARTDB_URL', url);
+                await eda.sys_Storage.setExtensionUserConfig('PARTDB_TOKEN', token);
+                showToast('Settings saved!');
+                setStatus('pending', 'Saved (use Test Connection to verify)');
+            } catch (e) {
+                showToast('Failed to save settings: ' + e.message, 'error');
+            }
+        });
+
+        // Test connection
+        btnTest.addEventListener('click', async () => {
+            const url = serverUrlInput.value.trim().replace(/\/+$/, '');
+            const token = apiTokenInput.value.trim();
+
+            if (!url || !token) {
+                showToast('Please enter both URL and token', 'error');
+                return;
+            }
+
+            btnTest.disabled = true;
+            btnTest.textContent = 'Testing...';
+            setStatus('pending', 'Connecting...');
+
+            try {
+                const response = await fetch(`${url}/api/tokens/current`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const tokenName = data.name || 'unnamed';
+                const level = data.level || 'unknown';
+                setStatus('connected', `Connected (token: "${tokenName}", level: ${level})`);
+                showToast('Connection successful!');
+            } catch (e) {
+                setStatus('disconnected', `Failed: ${e.message}`);
+                showToast('Connection failed: ' + e.message, 'error');
+            } finally {
+                btnTest.disabled = false;
+                btnTest.textContent = 'Test Connection';
+            }
+        });
+
+        loadSettings();
+    </script>
+</body>
+</html>
