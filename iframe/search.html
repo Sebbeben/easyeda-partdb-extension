@@ -5,17 +5,106 @@
     <title>Part-DB Search</title>
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        .detail-section { margin-bottom: 12px; }
-        .detail-section-title {
+        /* ── Layout ───────────────────────────────────────── */
+        .main-layout { display: flex; gap: 0; height: 100%; }
+        .sidebar {
+            width: 210px; flex-shrink: 0; display: flex; flex-direction: column;
+            border-right: 1px solid var(--border-color); background: var(--bg-secondary);
+        }
+        .sidebar-header {
             font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-muted); padding: 10px 10px 6px;
+        }
+        .results-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        /* ── Category Tree ────────────────────────────────── */
+        .tree-wrap { flex: 1; overflow-y: auto; padding: 2px 6px 6px; }
+        .tree-node { user-select: none; }
+        .tree-label {
+            display: flex; align-items: center; gap: 3px; padding: 3px 6px;
+            cursor: pointer; font-size: 12px; border-radius: 4px; transition: background 0.1s;
+            color: var(--text-secondary);
+        }
+        .tree-label:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .tree-label.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+        .tree-toggle {
+            width: 14px; height: 14px; display: inline-flex; align-items: center;
+            justify-content: center; font-size: 8px; color: var(--text-muted);
+            flex-shrink: 0; transition: transform 0.15s;
+        }
+        .tree-toggle.expanded { transform: rotate(90deg); }
+        .tree-toggle.empty { visibility: hidden; }
+        .tree-children { padding-left: 12px; }
+        .tree-children.collapsed { display: none; }
+        .tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* ── Filter bar ───────────────────────────────────── */
+        .filter-bar {
+            display: flex; gap: 6px; align-items: center; padding: 6px 12px;
+            border-bottom: 1px solid var(--border-color); font-size: 11px;
+        }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color);
+            border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.15s;
+        }
+        .filter-chip:hover { border-color: var(--accent); }
+        .filter-chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+        .filter-chip .chip-x { font-size: 10px; opacity: 0.6; margin-left: 2px; cursor: pointer; }
+
+        /* ── Results Table ────────────────────────────────── */
+        .results-scroll { flex: 1; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th {
+            position: sticky; top: 0; z-index: 1;
+            background: var(--bg-tertiary); color: var(--text-muted);
+            font-weight: 600; font-size: 10px; text-transform: uppercase;
+            letter-spacing: 0.5px; padding: 6px 10px; text-align: left;
+            border-bottom: 2px solid var(--border-color); white-space: nowrap;
+        }
+        td {
+            padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+        }
+        tr:hover td { background: var(--bg-hover); }
+        tr { cursor: pointer; transition: background 0.08s; }
+        .part-name { font-weight: 500; color: var(--text-primary); }
+
+        /* ── Part Detail ──────────────────────────────────── */
+        .detail-panel {
+            background: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: var(--radius); padding: 16px; overflow-y: auto;
+        }
+        .detail-panel h3 { font-size: 15px; margin-bottom: 12px; color: var(--text-primary); }
+        .detail-section { margin-bottom: 14px; }
+        .detail-section-title {
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
             letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px;
             padding-bottom: 4px; border-bottom: 1px solid var(--border-color);
         }
+        .detail-row { display: flex; padding: 3px 0; font-size: 12px; }
+        .detail-label { width: 120px; flex-shrink: 0; color: var(--text-muted); font-weight: 500; }
+        .detail-value { color: var(--text-primary); word-break: break-word; }
+        .detail-value a { color: var(--accent); text-decoration: none; }
+        .detail-value a:hover { text-decoration: underline; }
         .back-btn {
             cursor: pointer; color: var(--accent); font-size: 12px;
-            margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px;
+            margin-bottom: 10px; display: inline-flex; align-items: center; gap: 4px;
         }
         .back-btn:hover { text-decoration: underline; }
+
+        /* Part image */
+        .part-image {
+            max-width: 120px; max-height: 120px; border-radius: var(--radius);
+            border: 1px solid var(--border-color); object-fit: contain;
+            background: #fff; float: right; margin: 0 0 10px 10px;
+        }
+        .part-thumb {
+            width: 28px; height: 28px; border-radius: 3px; object-fit: contain;
+            background: #fff; border: 1px solid var(--border-color); vertical-align: middle;
+        }
+
+        /* Supplier cards */
         .supplier-card {
             background: var(--bg-tertiary); border-radius: var(--radius);
             padding: 8px 10px; margin-bottom: 6px; font-size: 12px;
@@ -24,68 +113,34 @@
         .supplier-card .supplier-spn { color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; }
         .supplier-card .supplier-price { color: var(--accent); font-weight: 500; }
         .param-table td:first-child { color: var(--text-secondary); font-weight: 500; }
-        .category-path { font-size: 11px; color: var(--text-muted); }
 
-        /* Category tree */
-        .tree-node { user-select: none; }
-        .tree-label {
-            display: flex; align-items: center; gap: 4px; padding: 4px 6px;
-            cursor: pointer; font-size: 12px; border-radius: 3px; transition: background 0.1s;
-        }
-        .tree-label:hover { background: var(--bg-hover); }
-        .tree-label.active { background: var(--accent-bg); color: var(--accent); }
-        .tree-toggle {
-            width: 16px; height: 16px; display: inline-flex; align-items: center;
-            justify-content: center; font-size: 10px; color: var(--text-muted);
-            flex-shrink: 0; transition: transform 0.15s;
-        }
-        .tree-toggle.expanded { transform: rotate(90deg); }
-        .tree-toggle.empty { visibility: hidden; }
-        .tree-children { padding-left: 14px; }
-        .tree-children.collapsed { display: none; }
-        .tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .tree-count {
-            font-size: 10px; color: var(--text-muted); background: var(--bg-tertiary);
-            padding: 0 5px; border-radius: 8px; flex-shrink: 0;
-        }
-
-        /* Filter bar */
-        .filter-bar {
-            display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-            padding: 4px 0; font-size: 11px;
-        }
-        .filter-chip {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 3px 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color);
-            border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.15s;
-        }
-        .filter-chip:hover { border-color: var(--accent); }
-        .filter-chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
-        .filter-chip .chip-x { font-size: 10px; opacity: 0.6; margin-left: 2px; }
-        .filter-chip .chip-x:hover { opacity: 1; }
-
-        /* Copyable text */
+        /* Copyable */
         .copyable { cursor: pointer; position: relative; }
         .copyable:hover { color: var(--accent); }
-        .copyable::after {
-            content: 'Copied!'; position: absolute; top: -22px; left: 50%;
-            transform: translateX(-50%); background: var(--bg-tertiary);
-            padding: 2px 6px; border-radius: 3px; font-size: 10px;
-            pointer-events: none; opacity: 0; transition: opacity 0.15s;
-        }
-        .copyable.copied::after { opacity: 1; }
 
-        /* Sidebar header */
-        .sidebar-header {
-            font-size: 11px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.5px; color: var(--text-muted); padding: 6px 8px;
+        /* ── Footer / Status ──────────────────────────────── */
+        .status-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 12px; border-top: 1px solid var(--border-color);
+            font-size: 11px; color: var(--text-muted); flex-shrink: 0;
         }
+        .conn-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 1px 8px 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600;
+        }
+        .conn-badge.ok { background: rgba(76,175,80,0.15); color: var(--success); }
+        .conn-badge.err { background: rgba(244,67,54,0.15); color: var(--danger); }
+        .conn-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+        .conn-badge.ok .dot { background: var(--success); }
+        .conn-badge.err .dot { background: var(--danger); }
+        .status-links a { color: var(--text-muted); text-decoration: none; font-size: 10px; }
+        .status-links a:hover { color: var(--accent); text-decoration: underline; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" style="padding: 0; gap: 0;">
         <!-- Search Header -->
-        <div class="header">
+        <div class="header" style="padding: 8px 12px; border-bottom: 1px solid var(--border-color);">
             <div class="search-bar" style="flex: 1;">
                 <input type="search" id="searchInput" placeholder="Search by name, description, MPN, IPN...">
                 <button class="btn btn-primary" id="btnSearch">Search</button>
@@ -95,37 +150,37 @@
         <!-- Filter bar -->
         <div class="filter-bar" id="filterBar">
             <div class="filter-chip" id="filterInStock" title="Show only parts with stock > 0">In Stock</div>
-            <div class="filter-chip" id="filterFavorites" title="Show favorite parts only">Favorites</div>
-            <span id="activeCategoryChip" style="display: none;"></span>
+            <div class="filter-chip" id="filterFavorites" title="Show favorite parts only">&#9733; Favorites</div>
+            <span id="activeCategoryChip"></span>
         </div>
 
-        <!-- Main Content: sidebar + results -->
-        <div class="content" id="mainContent" style="display: flex; gap: 10px;">
-            <!-- Category Tree Sidebar -->
-            <div id="categorySidebar" style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <!-- Main: sidebar + results -->
+        <div class="content main-layout" style="overflow: hidden;">
+            <!-- Category Tree -->
+            <div class="sidebar">
                 <div class="sidebar-header">Categories</div>
-                <div id="categoryTree" class="category-tree" style="flex: 1; overflow-y: auto; padding: 4px;">
-                    <div style="padding: 12px; color: var(--text-muted); font-size: 11px;">Loading...</div>
+                <div class="tree-wrap" id="categoryTree">
+                    <div style="padding: 16px 8px; color: var(--text-muted); font-size: 11px; text-align: center;">Loading...</div>
                 </div>
             </div>
 
-            <!-- Results area -->
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-                <!-- Results view (default) -->
+            <!-- Results -->
+            <div class="results-area">
                 <div id="resultsView" style="flex: 1; display: flex; flex-direction: column;">
-                    <div id="resultsInfo" class="pagination" style="display: none;">
+                    <div id="resultsInfo" style="display: none; padding: 4px 12px; font-size: 11px; color: var(--text-muted);">
                         <span id="resultsCount"></span>
                     </div>
-                    <div class="table-container" id="resultsTable" style="display: none; flex: 1;">
+                    <div class="results-scroll" id="resultsTable" style="display: none;">
                         <table>
                             <thead>
                                 <tr>
+                                    <th style="width: 32px;"></th>
                                     <th>Name</th>
                                     <th>Description</th>
                                     <th>Category</th>
                                     <th>MPN</th>
                                     <th>Stock</th>
-                                    <th>Storage</th>
+                                    <th>Location</th>
                                 </tr>
                             </thead>
                             <tbody id="resultsBody"></tbody>
@@ -143,31 +198,30 @@
                         <span>Searching...</span>
                     </div>
                     <div class="pagination" id="paginationBar" style="display: none;">
-                        <button class="btn btn-sm" id="btnPrevPage">&laquo; Previous</button>
+                        <button class="btn btn-sm" id="btnPrevPage">&laquo; Prev</button>
                         <span id="pageInfo"></span>
                         <button class="btn btn-sm" id="btnNextPage">Next &raquo;</button>
                     </div>
                 </div>
 
-                <!-- Part Detail view (hidden by default) -->
-                <div id="detailView" style="display: none;">
+                <div id="detailView" style="display: none; flex: 1; overflow-y: auto; padding: 12px;">
                     <div class="back-btn" id="btnBack">&larr; Back to results</div>
                     <div class="detail-panel" id="detailContent"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <div id="connectionInfo" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted);">
-                <span class="status-dot status-disconnected" id="statusDot"></span>
-                <span id="statusText">Not connected</span>
-            </div>
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="connBadge" class="conn-badge err"><span class="dot"></span> Disconnected</span>
+            <span class="status-links">
+                <a href="https://github.com/Sebbeben/easyeda-partdb-extension/issues" target="_blank">Report Issue</a>
+            </span>
         </div>
     </div>
 
     <script>
-        // Inline shared helpers (iframe sandbox blocks external script src)
+        // ── Helpers ────────────────────────────────────────
         function showToast(message, type = 'success') {
             const existing = document.querySelector('.toast');
             if (existing) existing.remove();
@@ -185,12 +239,11 @@
         }
         function copyToClipboard(text, el) {
             navigator.clipboard.writeText(text).then(() => {
-                if (el) { el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200); }
                 showToast('Copied: ' + text);
             }).catch(() => showToast('Copy failed', 'error'));
         }
 
-        // PartDBClient (inlined — iframe sandbox blocks external script src)
+        // ── PartDBClient ───────────────────────────────────
         class PartDBClient {
             constructor() { this.baseUrl = ''; this.token = ''; }
             async loadSettings() {
@@ -202,7 +255,7 @@
             }
             isConfigured() { return this.baseUrl && this.token; }
             async request(endpoint, options = {}) {
-                if (!this.isConfigured()) throw new Error('Part-DB connection not configured.');
+                if (!this.isConfigured()) throw new Error('Part-DB not configured.');
                 const response = await fetch(`${this.baseUrl}${endpoint}`, {
                     ...options,
                     headers: {
@@ -213,9 +266,9 @@
                     },
                 });
                 if (!response.ok) {
-                    if (response.status === 401) throw new Error('Authentication failed. Check your API token.');
-                    if (response.status === 403) throw new Error('Access denied. Token may lack required permissions.');
-                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                    if (response.status === 401) throw new Error('Auth failed. Check API token.');
+                    if (response.status === 403) throw new Error('Access denied.');
+                    throw new Error(`API ${response.status}`);
                 }
                 return response.json();
             }
@@ -246,6 +299,39 @@
                 if (minAmount > 0 && stock < minAmount) return 'stock-low';
                 return 'stock-ok';
             }
+            // Get thumbnail URL for a part's master picture
+            getImageUrl(part) {
+                const att = part.master_picture_attachment;
+                if (!att) return null;
+                // Try thumbnail_url first, then internal path, then external url
+                const url = att.thumbnail_url || att.media_url || att.url || att.internal_path;
+                if (!url) return null;
+                return url.startsWith('http') ? url : `${this.baseUrl}${url}`;
+            }
+            // Extract datasheet URL from attachments
+            getDatasheetUrl(part) {
+                if (!part.attachments) return null;
+                for (const att of part.attachments) {
+                    const name = (att.name || '').toLowerCase();
+                    const url = att.url || att.internal_path || '';
+                    const ext = url.split('.').pop()?.toLowerCase();
+                    if (name.includes('datasheet') || ext === 'pdf') {
+                        return url.startsWith('http') ? url : `${this.baseUrl}${url}`;
+                    }
+                }
+                return null;
+            }
+            // Extract LCSC number from supplier part numbers
+            static getLcscNumber(part) {
+                if (!part.orderdetails) return null;
+                for (const od of part.orderdetails) {
+                    const spn = (od.supplierpartnr || '').trim();
+                    if (/^C\d{3,}$/.test(spn)) return spn;
+                    const supplierName = od.supplier && typeof od.supplier === 'object' ? (od.supplier.name || '').toLowerCase() : '';
+                    if (supplierName.includes('lcsc') || supplierName.includes('jlcpcb')) return spn;
+                }
+                return null;
+            }
         }
     </script>
     <script>
@@ -274,27 +360,27 @@
         const btnNextPage = document.getElementById('btnNextPage');
         const detailContent = document.getElementById('detailContent');
         const btnBack = document.getElementById('btnBack');
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
+        const connBadge = document.getElementById('connBadge');
         const categoryTree = document.getElementById('categoryTree');
         const filterInStockEl = document.getElementById('filterInStock');
         const filterFavoritesEl = document.getElementById('filterFavorites');
         const activeCategoryChip = document.getElementById('activeCategoryChip');
 
-        // ── Initialize ─────────────────────────────────────────────────
+        // ── Initialize ─────────────────────────────────────
         async function init() {
             await client.loadSettings();
             if (client.isConfigured()) {
-                statusDot.className = 'status-dot status-connected';
-                statusText.textContent = 'Connected';
+                connBadge.className = 'conn-badge ok';
+                connBadge.innerHTML = '<span class="dot"></span> Connected';
                 loadCategoryTree();
             } else {
-                statusText.textContent = 'Not configured — use Part-DB > Settings';
-                categoryTree.innerHTML = '<div style="padding: 12px; color: var(--text-muted); font-size: 11px;">Connect to Part-DB first</div>';
+                connBadge.className = 'conn-badge err';
+                connBadge.innerHTML = '<span class="dot"></span> Not configured';
+                categoryTree.innerHTML = '<div style="padding: 16px 8px; color: var(--text-muted); font-size: 11px; text-align: center;">Open Part-DB &rarr; Settings to connect</div>';
             }
         }
 
-        // ── Category Tree ──────────────────────────────────────────────
+        // ── Category Tree ──────────────────────────────────
         async function loadCategoryTree() {
             try {
                 const data = await client.getCategories(1, 500);
@@ -306,8 +392,7 @@
         }
 
         function renderTree(cats) {
-            const byParent = {};
-            const catMap = {};
+            const byParent = {}, catMap = {};
             for (const cat of cats) {
                 const id = PartDBClient.extractId(cat['@id'] || cat.id);
                 const parentIri = cat.parent;
@@ -317,61 +402,57 @@
                         ? PartDBClient.extractId(parentIri['@id'] || parentIri.id)
                         : PartDBClient.extractId(parentIri);
                 }
-                catMap[id] = { ...cat, _id: id, _parentId: parentId };
+                catMap[id] = { ...cat, _id: id };
                 if (!byParent[parentId]) byParent[parentId] = [];
                 byParent[parentId].push(id);
             }
 
             function buildNodes(parentId) {
                 const children = byParent[parentId] || [];
-                if (children.length === 0) return '';
+                if (!children.length) return '';
                 let html = '';
                 for (const id of children) {
                     const cat = catMap[id];
                     const name = cat.name || `Category ${id}`;
                     const hasKids = (byParent[id] || []).length > 0;
-                    const kidHtml = hasKids ? buildNodes(id) : '';
                     html += `<div class="tree-node">
                         <div class="tree-label" data-id="${id}" data-name="${escapeHtml(cat.full_path || name)}">
                             <span class="tree-toggle ${hasKids ? '' : 'empty'}" data-id="${id}">&#9654;</span>
                             <span class="tree-name">${escapeHtml(name)}</span>
                         </div>
-                        ${hasKids ? `<div class="tree-children collapsed" data-parent="${id}">${kidHtml}</div>` : ''}
+                        ${hasKids ? `<div class="tree-children collapsed" data-parent="${id}">${buildNodes(id)}</div>` : ''}
                     </div>`;
                 }
                 return html;
             }
 
-            let html = `<div class="tree-label active" data-id="" data-name="All Categories">
+            let html = `<div class="tree-label active" data-id="" data-name="All">
                 <span class="tree-toggle empty">&#9654;</span>
-                <span class="tree-name">All Categories</span>
+                <span class="tree-name" style="font-weight: 600;">All Categories</span>
             </div>`;
             html += buildNodes(null);
             categoryTree.innerHTML = html;
 
-            // Event delegation
             categoryTree.addEventListener('click', (e) => {
                 const toggle = e.target.closest('.tree-toggle:not(.empty)');
                 if (toggle) {
                     const id = toggle.dataset.id;
-                    const childrenEl = categoryTree.querySelector(`.tree-children[data-parent="${id}"]`);
-                    if (childrenEl) {
-                        childrenEl.classList.toggle('collapsed');
-                        toggle.classList.toggle('expanded');
-                    }
+                    const ch = categoryTree.querySelector(`.tree-children[data-parent="${id}"]`);
+                    if (ch) { ch.classList.toggle('collapsed'); toggle.classList.toggle('expanded'); }
                     e.stopPropagation();
                     return;
                 }
-
                 const label = e.target.closest('.tree-label');
                 if (label) {
                     const prev = categoryTree.querySelector('.tree-label.active');
                     if (prev) prev.classList.remove('active');
                     label.classList.add('active');
-
                     selectedCategoryId = label.dataset.id;
                     selectedCategoryName = label.dataset.name;
                     updateCategoryChip();
+                    // Always show results view when clicking a category
+                    detailView.style.display = 'none';
+                    resultsView.style.display = 'flex';
                     searchParts(1);
                 }
             });
@@ -380,27 +461,24 @@
         function updateCategoryChip() {
             if (selectedCategoryId) {
                 activeCategoryChip.innerHTML = `<div class="filter-chip active">
-                    ${escapeHtml(selectedCategoryName)} <span class="chip-x" id="clearCategory">&times;</span>
+                    ${escapeHtml(selectedCategoryName)} <span class="chip-x" id="clearCat">&times;</span>
                 </div>`;
-                activeCategoryChip.style.display = 'inline';
-                document.getElementById('clearCategory').addEventListener('click', (e) => {
+                document.getElementById('clearCat').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    selectedCategoryId = '';
-                    selectedCategoryName = '';
+                    selectedCategoryId = ''; selectedCategoryName = '';
                     const prev = categoryTree.querySelector('.tree-label.active');
                     if (prev) prev.classList.remove('active');
-                    const allLabel = categoryTree.querySelector('.tree-label[data-id=""]');
-                    if (allLabel) allLabel.classList.add('active');
+                    const all = categoryTree.querySelector('.tree-label[data-id=""]');
+                    if (all) all.classList.add('active');
                     updateCategoryChip();
                     searchParts(1);
                 });
             } else {
-                activeCategoryChip.style.display = 'none';
                 activeCategoryChip.innerHTML = '';
             }
         }
 
-        // ── Filters ────────────────────────────────────────────────────
+        // ── Filters ────────────────────────────────────────
         filterInStockEl.addEventListener('click', () => {
             filterInStock = !filterInStock;
             filterInStockEl.classList.toggle('active', filterInStock);
@@ -412,23 +490,19 @@
             searchParts(1);
         });
 
-        // ── Search ─────────────────────────────────────────────────────
+        // ── Search ─────────────────────────────────────────
         async function searchParts(page = 1) {
             const query = searchInput.value.trim();
-
             if (!query && !selectedCategoryId && !filterFavorites) {
                 showToast('Enter a search term, select a category, or enable a filter', 'warning');
                 return;
             }
-
             if (!client.isConfigured()) {
-                showToast('Configure Part-DB connection first (Part-DB > Settings)', 'error');
+                showToast('Configure Part-DB connection first', 'error');
                 return;
             }
 
             currentPage = page;
-
-            // Show loading
             resultsTable.style.display = 'none';
             resultsEmpty.style.display = 'none';
             resultsLoading.style.display = 'flex';
@@ -437,54 +511,40 @@
 
             try {
                 const baseParams = new URLSearchParams({
-                    page: page.toString(),
-                    itemsPerPage: '30',
-                    'order[name]': 'asc',
+                    page: page.toString(), itemsPerPage: '30', 'order[name]': 'asc',
                 });
                 if (selectedCategoryId) baseParams.set('category', selectedCategoryId + '++');
                 if (filterFavorites) baseParams.set('favorite', 'true');
 
-                let parts = [];
-                let totalItems = 0;
+                let parts = [], totalItems = 0;
 
                 if (query) {
                     const wildcard = `%${query}%`;
-                    // Search across multiple fields, merge unique results
                     const fields = ['name', 'description', 'manufacturer_product_number', 'ipn', 'tags'];
                     const seenIds = new Set();
-
                     for (const field of fields) {
                         const params = new URLSearchParams(baseParams);
                         params.set(field, wildcard);
                         try {
                             const data = await client.request(`/api/parts?${params}`);
-                            const found = data['hydra:member'] || data.member || data || [];
-                            for (const p of found) {
+                            for (const p of (data['hydra:member'] || data.member || data || [])) {
                                 const pid = String(PartDBClient.extractId(p['@id'] || p.id));
-                                if (!seenIds.has(pid)) {
-                                    seenIds.add(pid);
-                                    parts.push(p);
-                                }
+                                if (!seenIds.has(pid)) { seenIds.add(pid); parts.push(p); }
                             }
-                        } catch (e) {
-                            // Skip fields that error (e.g., tags filter might behave differently)
-                        }
-                        // If we have plenty of results from early fields, stop searching
+                        } catch (e) {}
                         if (parts.length >= 30) break;
                     }
                     totalItems = parts.length;
                 } else {
-                    // Category/favorites browse only
                     const data = await client.request(`/api/parts?${baseParams}`);
                     parts = data['hydra:member'] || data.member || data || [];
                     totalItems = data['hydra:totalItems'] || parts.length;
                 }
 
-                // Client-side stock filter
                 if (filterInStock) {
                     parts = parts.filter(p => {
-                        const stock = PartDBClient.calculateStock(p.partLots || []);
-                        return stock === '?' || stock > 0;
+                        const s = PartDBClient.calculateStock(p.partLots || []);
+                        return s === '?' || s > 0;
                     });
                     totalItems = parts.length;
                 }
@@ -493,55 +553,45 @@
                 resultsLoading.style.display = 'none';
 
                 if (parts.length === 0) {
-                    resultsEmpty.innerHTML = `
-                        <div class="icon">&#128269;</div>
-                        <div>No parts found</div>
-                        <div style="font-size: 11px; margin-top: 4px; color: var(--text-muted);">
-                            Try a different search term or category
-                        </div>
-                    `;
+                    resultsEmpty.innerHTML = '<div class="icon">&#128269;</div><div>No parts found</div><div style="font-size:11px;margin-top:4px;color:var(--text-muted);">Try a different search term or category</div>';
                     resultsEmpty.style.display = 'block';
                     return;
                 }
 
-                // Sort merged results by name
                 parts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-                // Render results
                 resultsBody.innerHTML = '';
                 for (const part of parts) {
                     const id = PartDBClient.extractId(part['@id'] || part.id);
                     const stock = PartDBClient.calculateStock(part.partLots || []);
                     const stockCls = PartDBClient.stockClass(stock, part.minamount || 0);
-
+                    const imgUrl = client.getImageUrl(part);
                     const locations = (part.partLots || [])
                         .filter(l => l.storage_location)
                         .map(l => typeof l.storage_location === 'object' ? l.storage_location.name : l.storage_location)
                         .filter(Boolean);
                     const locationStr = [...new Set(locations)].join(', ');
-
                     let catName = '';
-                    if (part.category && typeof part.category === 'object') {
+                    if (part.category && typeof part.category === 'object')
                         catName = part.category.full_path || part.category.name || '';
-                    }
-
                     const mpn = part.manufacturer_product_number || '';
 
                     const tr = document.createElement('tr');
                     tr.onclick = () => showPartDetail(id);
                     tr.innerHTML = `
-                        <td><strong>${escapeHtml(part.name)}</strong></td>
+                        <td style="width:32px;padding:4px 6px;">${imgUrl ? `<img class="part-thumb" src="${escapeHtml(imgUrl)}" alt="" onerror="this.style.display='none'">` : '<span style="display:inline-block;width:28px;height:28px;background:var(--bg-tertiary);border-radius:3px;border:1px solid var(--border-color);"></span>'}</td>
+                        <td><span class="part-name">${escapeHtml(part.name)}</span></td>
                         <td title="${escapeHtml(part.description || '')}">${escapeHtml(part.description || '-')}</td>
-                        <td class="category-path">${escapeHtml(catName || '-')}</td>
-                        <td style="font-family: var(--font-mono); font-size: 11px;">${mpn ? `<span class="copyable" onclick="event.stopPropagation(); copyToClipboard('${escapeHtml(mpn)}', this);" title="Click to copy">${escapeHtml(mpn)}</span>` : '-'}</td>
+                        <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(catName || '-')}</td>
+                        <td style="font-family:var(--font-mono);font-size:11px;">${mpn ? `<span class="copyable" onclick="event.stopPropagation();copyToClipboard('${escapeHtml(mpn)}',this)" title="Click to copy">${escapeHtml(mpn)}</span>` : '-'}</td>
                         <td><span class="stock-badge ${stockCls}">${stock}</span></td>
-                        <td>${escapeHtml(locationStr || '-')}</td>
+                        <td style="font-size:11px;">${escapeHtml(locationStr || '-')}</td>
                     `;
                     resultsBody.appendChild(tr);
                 }
 
                 resultsTable.style.display = 'block';
-                resultsInfo.style.display = 'flex';
+                resultsInfo.style.display = 'block';
                 resultsCount.textContent = `${totalItems} part${totalItems !== 1 ? 's' : ''} found`;
 
                 if (totalPages > 1) {
@@ -552,103 +602,99 @@
                 }
             } catch (e) {
                 resultsLoading.style.display = 'none';
-                resultsEmpty.innerHTML = `
-                    <div class="icon">&#9888;</div>
-                    <div style="color: var(--danger);">${escapeHtml(e.message)}</div>
-                `;
+                resultsEmpty.innerHTML = `<div class="icon">&#9888;</div><div style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
                 resultsEmpty.style.display = 'block';
             }
         }
 
-        // ── Part Detail ────────────────────────────────────────────────
+        // ── Part Detail ────────────────────────────────────
         async function showPartDetail(partId) {
             resultsView.style.display = 'none';
-            detailView.style.display = 'block';
-            detailContent.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading part details...</span></div>';
-
+            detailView.style.display = 'flex';
+            detailContent.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
             try {
                 const part = await client.getPart(partId);
                 renderPartDetail(part);
             } catch (e) {
-                detailContent.innerHTML = `<div style="color: var(--danger);">Failed to load part: ${escapeHtml(e.message)}</div>`;
+                detailContent.innerHTML = `<div style="color:var(--danger);">Failed: ${escapeHtml(e.message)}</div>`;
             }
         }
 
         function renderPartDetail(part) {
             const stock = PartDBClient.calculateStock(part.partLots || []);
             const stockCls = PartDBClient.stockClass(stock, part.minamount || 0);
+            const imgUrl = client.getImageUrl(part);
+            const datasheetUrl = client.getDatasheetUrl(part);
+            const lcsc = PartDBClient.getLcscNumber(part);
 
-            let catName = '';
-            if (part.category && typeof part.category === 'object') {
-                catName = part.category.full_path || part.category.name || '';
-            }
-            let mfr = '';
-            if (part.manufacturer && typeof part.manufacturer === 'object') {
-                mfr = part.manufacturer.name || '';
-            }
-            let footprint = '';
-            if (part.footprint && typeof part.footprint === 'object') {
-                footprint = part.footprint.name || '';
-            }
-
+            let catName = '', mfr = '', footprint = '';
+            if (part.category && typeof part.category === 'object') catName = part.category.full_path || part.category.name || '';
+            if (part.manufacturer && typeof part.manufacturer === 'object') mfr = part.manufacturer.name || '';
+            if (part.footprint && typeof part.footprint === 'object') footprint = part.footprint.name || '';
             const mpn = part.manufacturer_product_number || '';
             const ipn = part.ipn || '';
 
-            let html = `<h3>${escapeHtml(part.name)}</h3>`;
+            let html = '';
+            if (imgUrl) html += `<img class="part-image" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(part.name)}" onerror="this.style.display='none'">`;
+            html += `<h3>${escapeHtml(part.name)}</h3>`;
 
+            // Quick actions
+            html += `<div style="margin-bottom:12px; display:flex; gap:6px; flex-wrap:wrap;">`;
+            if (datasheetUrl) {
+                html += `<a href="${escapeHtml(datasheetUrl)}" target="_blank" class="btn btn-sm" style="text-decoration:none;">&#128196; Datasheet</a>`;
+            }
+            if (lcsc) {
+                const lcscDatasheet = `https://datasheet.lcsc.com/lcsc/${lcsc}.pdf`;
+                if (!datasheetUrl) html += `<a href="${lcscDatasheet}" target="_blank" class="btn btn-sm" style="text-decoration:none;">&#128196; LCSC Datasheet</a>`;
+                html += `<a href="https://www.lcsc.com/product-detail/${lcsc}.html" target="_blank" class="btn btn-sm" style="text-decoration:none;">LCSC: ${escapeHtml(lcsc)}</a>`;
+            }
+            const partId = PartDBClient.extractId(part['@id'] || part.id);
+            html += `<a href="${client.baseUrl}/en/part/${partId}" target="_blank" class="btn btn-sm" style="text-decoration:none;">Open in Part-DB</a>`;
+            html += `</div>`;
+
+            // General
             html += `<div class="detail-section">
                 <div class="detail-section-title">General</div>
                 <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${escapeHtml(part.description || '-')}</span></div>
                 <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value">${escapeHtml(catName || '-')}</span></div>
                 <div class="detail-row"><span class="detail-label">Manufacturer</span><span class="detail-value">${escapeHtml(mfr || '-')}</span></div>
-                <div class="detail-row"><span class="detail-label">MPN</span><span class="detail-value" style="font-family: var(--font-mono);">${mpn ? `<span class="copyable" onclick="copyToClipboard('${escapeHtml(mpn)}', this)" title="Click to copy">${escapeHtml(mpn)}</span>` : '-'}</span></div>
+                <div class="detail-row"><span class="detail-label">MPN</span><span class="detail-value" style="font-family:var(--font-mono);">${mpn ? `<span class="copyable" onclick="copyToClipboard('${escapeHtml(mpn)}',this)">${escapeHtml(mpn)}</span>` : '-'}</span></div>
                 <div class="detail-row"><span class="detail-label">Footprint</span><span class="detail-value">${escapeHtml(footprint || '-')}</span></div>
-                ${ipn ? `<div class="detail-row"><span class="detail-label">IPN</span><span class="detail-value" style="font-family: var(--font-mono);"><span class="copyable" onclick="copyToClipboard('${escapeHtml(ipn)}', this)" title="Click to copy">${escapeHtml(ipn)}</span></span></div>` : ''}
+                ${ipn ? `<div class="detail-row"><span class="detail-label">IPN</span><span class="detail-value" style="font-family:var(--font-mono);"><span class="copyable" onclick="copyToClipboard('${escapeHtml(ipn)}',this)">${escapeHtml(ipn)}</span></span></div>` : ''}
+                ${lcsc ? `<div class="detail-row"><span class="detail-label">LCSC</span><span class="detail-value" style="font-family:var(--font-mono);"><span class="copyable" onclick="copyToClipboard('${escapeHtml(lcsc)}',this)">${escapeHtml(lcsc)}</span></span></div>` : ''}
                 ${part.tags ? `<div class="detail-row"><span class="detail-label">Tags</span><span class="detail-value">${escapeHtml(part.tags)}</span></div>` : ''}
                 ${part.comment ? `<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${escapeHtml(part.comment)}</span></div>` : ''}
             </div>`;
 
+            // Stock
             html += `<div class="detail-section">
                 <div class="detail-section-title">Stock</div>
-                <div class="detail-row">
-                    <span class="detail-label">Total Stock</span>
-                    <span class="detail-value"><span class="stock-badge ${stockCls}">${stock}</span></span>
-                </div>
+                <div class="detail-row"><span class="detail-label">Total</span><span class="detail-value"><span class="stock-badge ${stockCls}">${stock}</span></span></div>
                 ${part.minamount ? `<div class="detail-row"><span class="detail-label">Min. Amount</span><span class="detail-value">${part.minamount}</span></div>` : ''}`;
-
             if (part.partLots && part.partLots.length > 0) {
                 for (const lot of part.partLots) {
                     let locName = '';
-                    if (lot.storage_location && typeof lot.storage_location === 'object') {
+                    if (lot.storage_location && typeof lot.storage_location === 'object')
                         locName = lot.storage_location.full_path || lot.storage_location.name || '';
-                    }
                     const qty = lot.instock_unknown ? '?' : (lot.amount || 0);
-                    html += `<div class="detail-row">
-                        <span class="detail-label" style="padding-left: 12px;">${escapeHtml(locName || 'Unassigned')}</span>
-                        <span class="detail-value">${qty}${lot.comment ? ` (${escapeHtml(lot.comment)})` : ''}</span>
-                    </div>`;
+                    html += `<div class="detail-row"><span class="detail-label" style="padding-left:12px;">${escapeHtml(locName || 'Unassigned')}</span><span class="detail-value">${qty}${lot.comment ? ` (${escapeHtml(lot.comment)})` : ''}</span></div>`;
                 }
             }
             html += `</div>`;
 
+            // Suppliers
             if (part.orderdetails && part.orderdetails.length > 0) {
-                html += `<div class="detail-section">
-                    <div class="detail-section-title">Suppliers</div>`;
+                html += `<div class="detail-section"><div class="detail-section-title">Suppliers</div>`;
                 for (const od of part.orderdetails) {
-                    let supplierName = '';
-                    if (od.supplier && typeof od.supplier === 'object') {
-                        supplierName = od.supplier.name || '';
-                    }
+                    let sn = od.supplier && typeof od.supplier === 'object' ? od.supplier.name || '' : '';
                     html += `<div class="supplier-card">
-                        <div class="supplier-name">${escapeHtml(supplierName || 'Unknown Supplier')}</div>
-                        <div class="supplier-spn">SPN: <span class="copyable" onclick="copyToClipboard('${escapeHtml(od.supplierpartnr || '')}', this)" title="Click to copy">${escapeHtml(od.supplierpartnr || '-')}</span></div>
-                        ${od.supplier_product_url ? `<div><a href="${escapeHtml(od.supplier_product_url)}" target="_blank" style="color: var(--accent); font-size: 11px;">View at supplier</a></div>` : ''}`;
+                        <div class="supplier-name">${escapeHtml(sn || 'Unknown')}</div>
+                        <div class="supplier-spn">SPN: <span class="copyable" onclick="copyToClipboard('${escapeHtml(od.supplierpartnr || '')}',this)">${escapeHtml(od.supplierpartnr || '-')}</span></div>
+                        ${od.supplier_product_url ? `<div><a href="${escapeHtml(od.supplier_product_url)}" target="_blank" style="color:var(--accent);font-size:11px;">View at supplier</a></div>` : ''}`;
                     if (od.pricedetails && od.pricedetails.length > 0) {
                         for (const pd of od.pricedetails) {
-                            const price = pd.price || '?';
-                            const currency = pd.currency && typeof pd.currency === 'object' ? pd.currency.iso_code : '';
-                            const minQty = pd.min_discount_quantity || 1;
-                            html += `<div class="supplier-price">${price} ${currency} (min qty: ${minQty})</div>`;
+                            const cur = pd.currency && typeof pd.currency === 'object' ? pd.currency.iso_code : '';
+                            html += `<div class="supplier-price">${pd.price || '?'} ${cur} (min qty: ${pd.min_discount_quantity || 1})</div>`;
                         }
                     }
                     html += `</div>`;
@@ -656,72 +702,41 @@
                 html += `</div>`;
             }
 
+            // Parameters
             if (part.parameters && part.parameters.length > 0) {
-                html += `<div class="detail-section">
-                    <div class="detail-section-title">Parameters</div>
-                    <table class="param-table" style="font-size: 12px;">`;
-                for (const param of part.parameters) {
-                    let value = param.value_text || '';
-                    if (!value && param.value_typical !== null && param.value_typical !== undefined) {
-                        value = String(param.value_typical);
-                        if (param.unit) value += ` ${param.unit}`;
-                    }
-                    if (!value && param.value_min !== null && param.value_max !== null) {
-                        value = `${param.value_min} - ${param.value_max}`;
-                        if (param.unit) value += ` ${param.unit}`;
-                    }
-                    html += `<tr>
-                        <td style="padding: 3px 10px 3px 0; width: 140px;">${escapeHtml(param.name)}${param.group ? ` <span style="color: var(--text-muted);">(${escapeHtml(param.group)})</span>` : ''}</td>
-                        <td style="padding: 3px 0;">${escapeHtml(value || '-')}${param.symbol ? ` ${escapeHtml(param.symbol)}` : ''}</td>
-                    </tr>`;
+                html += `<div class="detail-section"><div class="detail-section-title">Parameters</div><table class="param-table" style="font-size:12px;">`;
+                for (const p of part.parameters) {
+                    let v = p.value_text || '';
+                    if (!v && p.value_typical != null) { v = String(p.value_typical); if (p.unit) v += ` ${p.unit}`; }
+                    if (!v && p.value_min != null && p.value_max != null) { v = `${p.value_min}–${p.value_max}`; if (p.unit) v += ` ${p.unit}`; }
+                    html += `<tr><td style="padding:2px 8px 2px 0;width:130px;">${escapeHtml(p.name)}</td><td style="padding:2px 0;">${escapeHtml(v || '-')}</td></tr>`;
                 }
                 html += `</table></div>`;
             }
 
+            // Attachments
             if (part.attachments && part.attachments.length > 0) {
-                html += `<div class="detail-section">
-                    <div class="detail-section-title">Attachments</div>`;
+                html += `<div class="detail-section"><div class="detail-section-title">Attachments</div>`;
                 for (const att of part.attachments) {
                     const name = att.name || att.original_filename || 'Attachment';
-                    const url = att.url || '';
+                    const url = att.url || att.internal_path || '';
                     if (url) {
                         const fullUrl = url.startsWith('http') ? url : `${client.baseUrl}${url}`;
-                        html += `<div class="detail-row">
-                            <span class="detail-label">${escapeHtml(name)}</span>
-                            <span class="detail-value"><a href="${escapeHtml(fullUrl)}" target="_blank">Open</a></span>
-                        </div>`;
+                        html += `<div class="detail-row"><span class="detail-label">${escapeHtml(name)}</span><span class="detail-value"><a href="${escapeHtml(fullUrl)}" target="_blank">Open</a></span></div>`;
                     }
                 }
                 html += `</div>`;
             }
 
-            const partId = PartDBClient.extractId(part['@id'] || part.id);
-            html += `<div class="detail-section" style="margin-top: 12px;">
-                <a href="${client.baseUrl}/en/part/${partId}" target="_blank" style="color: var(--accent); font-size: 12px;">
-                    Open in Part-DB &rarr;
-                </a>
-            </div>`;
-
             detailContent.innerHTML = html;
         }
 
-        // ── Event listeners ────────────────────────────────────────────
-        btnSearch.addEventListener('click', () => searchParts(1));
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') searchParts(1);
-        });
-
-        btnPrevPage.addEventListener('click', () => {
-            if (currentPage > 1) searchParts(currentPage - 1);
-        });
-        btnNextPage.addEventListener('click', () => {
-            if (currentPage < totalPages) searchParts(currentPage + 1);
-        });
-
-        btnBack.addEventListener('click', () => {
-            detailView.style.display = 'none';
-            resultsView.style.display = 'flex';
-        });
+        // ── Events ─────────────────────────────────────────
+        btnSearch.addEventListener('click', () => { detailView.style.display='none'; resultsView.style.display='flex'; searchParts(1); });
+        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { detailView.style.display='none'; resultsView.style.display='flex'; searchParts(1); } });
+        btnPrevPage.addEventListener('click', () => { if (currentPage > 1) searchParts(currentPage - 1); });
+        btnNextPage.addEventListener('click', () => { if (currentPage < totalPages) searchParts(currentPage + 1); });
+        btnBack.addEventListener('click', () => { detailView.style.display = 'none'; resultsView.style.display = 'flex'; });
 
         init();
     </script>

@@ -1,6 +1,6 @@
 {
   "name": "easyeda-partdb-extension",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "EasyEDA Pro extension for Part-DB integration - search parts, check stock, view supplier info",
   "private": true,
   "scripts": {
