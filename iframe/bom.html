@@ -50,9 +50,9 @@
             border-bottom: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
         }
-        /* Zebra striping */
-        tbody tr:nth-child(even) td { background: var(--bg-secondary); }
-        tbody tr:nth-child(odd) td { background: transparent; }
+        /* Zebra striping — stronger contrast */
+        tbody tr:nth-child(odd) td { background: var(--bg-primary); }
+        tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.04); }
         tbody tr:hover td { background: var(--bg-hover) !important; }
 
         /* Status indicators */

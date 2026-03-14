@@ -67,18 +67,20 @@
             border-bottom: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
         }
-        /* Zebra striping */
-        tbody tr:nth-child(even) td { background: var(--bg-secondary); }
-        tbody tr:nth-child(odd) td { background: transparent; }
+        /* Zebra striping — stronger contrast */
+        tbody tr:nth-child(odd) td { background: var(--bg-primary); }
+        tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.04); }
         tbody tr:hover td { background: var(--bg-hover) !important; }
         tr { cursor: pointer; transition: background 0.08s; }
         .part-name { font-weight: 500; color: var(--text-primary); }
 
         /* ── Detail View ─────────────────────────────────── */
         .detail-header {
-            display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-            padding-bottom: 8px; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 12px; border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0; background: var(--bg-primary);
         }
+        .detail-scroll { flex: 1; overflow-y: auto; padding: 12px; }
         .detail-panel {
             background: var(--bg-secondary); border: 1px solid var(--border-color);
             border-radius: var(--radius); padding: 16px;
@@ -140,6 +142,15 @@
         .btn-action.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
         .btn-action.primary:hover { background: var(--accent-hover); }
 
+        /* Place button in results row */
+        .btn-place {
+            padding: 2px 8px; border: 1px solid var(--accent); border-radius: 4px;
+            background: transparent; color: var(--accent); font-size: 10px;
+            font-family: var(--font); cursor: pointer; white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .btn-place:hover { background: var(--accent); color: #fff; }
+
         /* ── Footer / Status ──────────────────────────────── */
         .status-bar {
             display: flex; justify-content: space-between; align-items: center;
@@ -177,7 +188,7 @@
         </div>
 
         <!-- Main: sidebar + results -->
-        <div class="content main-layout" style="overflow: hidden;">
+        <div class="content main-layout" style="overflow: auto; min-height: 0;">
             <!-- Category Tree -->
             <div class="sidebar">
                 <div class="sidebar-header">Categories</div>
@@ -204,6 +215,7 @@
                                     <th>LCSC / MPN</th>
                                     <th>Stock</th>
                                     <th>Location</th>
+                                    <th style="width: 50px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="resultsBody"></tbody>
@@ -228,12 +240,14 @@
                 </div>
 
                 <!-- Part detail view -->
-                <div id="detailView" style="display: none; flex: 1; overflow-y: auto; padding: 12px;">
+                <div id="detailView" style="display: none; flex: 1; flex-direction: column;">
                     <div class="detail-header">
-                        <button class="btn btn-sm" id="btnBack">&larr; Back</button>
-                        <span style="flex:1;"></span>
+                        <button class="btn btn-sm" id="btnBack">&larr; Back to results</button>
+                        <span id="detailTitle" style="flex:1; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
                     </div>
-                    <div class="detail-panel" id="detailContent"></div>
+                    <div class="detail-scroll">
+                        <div class="detail-panel" id="detailContent"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -457,6 +471,7 @@
         const btnPrevPage = document.getElementById('btnPrevPage');
         const btnNextPage = document.getElementById('btnNextPage');
         const detailContent = document.getElementById('detailContent');
+        const detailTitle = document.getElementById('detailTitle');
         const btnBack = document.getElementById('btnBack');
         const connBadge = document.getElementById('connBadge');
         const categoryTree = document.getElementById('categoryTree');
@@ -476,8 +491,9 @@
         function showDetailView() {
             resultsView.style.display = 'none';
             detailView.style.display = 'flex';
-            // Scroll to top of detail view
-            detailView.scrollTop = 0;
+            // Scroll to top of detail content
+            var scrollEl = detailView.querySelector('.detail-scroll');
+            if (scrollEl) scrollEl.scrollTop = 0;
         }
 
         // ════════════════════════════════════════════════════
@@ -785,6 +801,12 @@
                             escapeHtml(partNumberLabel) + '</span>';
                     }
 
+                    // Place button (only for LCSC parts)
+                    var placeHtml = '';
+                    if (lcsc) {
+                        placeHtml = '<button class="btn-place" onclick="event.stopPropagation();placeInSchematic(\'' + escapeHtml(lcsc) + '\')" title="Place ' + escapeHtml(lcsc) + ' in schematic">&#9889; Place</button>';
+                    }
+
                     tr.innerHTML =
                         '<td style="width:32px;padding:4px 6px;">' + imgHtml + '</td>' +
                         '<td><span class="part-name">' + escapeHtml(part.name) + '</span></td>' +
@@ -792,7 +814,8 @@
                         '<td style="font-size:11px;color:var(--text-muted);">' + escapeHtml(catName || '-') + '</td>' +
                         '<td style="font-family:var(--font-mono);font-size:11px;">' + pnHtml + '</td>' +
                         '<td><span class="stock-badge ' + stockCls + '">' + stock + '</span></td>' +
-                        '<td style="font-size:11px;">' + escapeHtml(locationStr || '-') + '</td>';
+                        '<td style="font-size:11px;">' + escapeHtml(locationStr || '-') + '</td>' +
+                        '<td style="width:50px;text-align:center;">' + placeHtml + '</td>';
 
                     resultsBody.appendChild(tr);
                 }
@@ -826,11 +849,13 @@
 
         async function showPartDetail(partId) {
             showDetailView();
+            detailTitle.textContent = '';
             detailContent.innerHTML =
                 '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
 
             try {
                 var part = await client.getPart(partId);
+                detailTitle.textContent = part.name || '';
                 renderPartDetail(part);
             } catch (e) {
                 detailContent.innerHTML =
